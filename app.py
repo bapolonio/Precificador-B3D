@@ -3,7 +3,7 @@ import os
 import streamlit as st
 
 # Configuração da página e layout
-st.set_page_config(page_title="Precificador B3D", page_icon="🖨️", layout="wide")
+st.set_page_config(page_title="Precificador B3D", page_icon="💲", layout="wide")
 
 # --- ESTILIZAÇÃO CSS (Alinhamento do Backup, Compactação e Ajustes Visuais) ---
 st.markdown(
@@ -15,7 +15,7 @@ st.markdown(
     }
     /* Alinha o botão de backup verticalmente com o título */
     .btn-backup-container {
-        margin-top: 12px;
+        margin-top: 14px;
     }
     div.stButton > button {
         background-color: #B2DE55 !important;
@@ -62,13 +62,24 @@ def carregar_dados():
       for p in dados.get("produtos_salvos", []):
         if "categoria" not in p:
           p["categoria"] = "Utilitários & Ferramentas"
+      
+      # Migração de filamentos antigos se necessário (caso venham como dicionário simples de string -> float)
+      fils_convertidos = {}
+      for k, v in dados.get("filamentos", {}).items():
+        if isinstance(v, (int, float)):
+          # Formato antigo: "Nome": 85.0 -> Transforma em Marca/Nome
+            fils_convertidos[k] = {"marca": "Genérica", "preco": float(v)}
+        else:
+          fils_convertidos[k] = v
+      dados["filamentos"] = fils_convertidos
       return dados
+
   return {
       "filamentos": {
-          "PLA Padrão": 85.0,
-          "PETG": 90.0,
-          "ABS": 95.0,
-          "Velvet": 110.0,
+          "PLA Padrão": {"marca": "Voolt3D", "preco": 85.0},
+          "PETG": {"marca": "Voolt3D", "preco": 90.0},
+          "ABS": {"marca": "3D Lab", "preco": 95.0},
+          "Velvet": {"marca": "Voolt3D", "preco": 110.0},
       },
       "impressoras": {
           "Bambu Lab A1": {"depreciacao": 0.80, "consumo": 150.0},
@@ -108,8 +119,7 @@ menu = st.sidebar.radio("MenuPrincipal", menu_opcoes, label_visibility="collapse
 # 1. PÁGINA INICIAL: CALCULADORA DE PRECIFICAÇÃO
 # ==========================================
 if menu == "Calculadora":
-  st.title("🖨️ Calculadora de Precificação - B3D")
-  st.write("Preencha os dados da peça para calcular o preço de venda ideal.")
+  st.title("🖩 Calculadora de Precificação")
 
   if not dados["filamentos"] or not dados["impressoras"]:
     st.warning(
@@ -120,9 +130,9 @@ if menu == "Calculadora":
     col_esq, col_dir = st.columns(2)
 
     with col_esq:
-      st.subheader("1. Seleção de Equipamento e Insumo")
+      st.subheader("1. Equipamento e Insumo")
       imp_selecionada = st.selectbox(
-          "Selecione a Impressora", list(dados["impressoras"].keys())
+          "Impressora", list(dados["impressoras"].keys())
       )
       depreciacao_atual = dados["impressoras"][imp_selecionada]["depreciacao"]
       consumo_atual = dados["impressoras"][imp_selecionada]["consumo"]
@@ -131,13 +141,6 @@ if menu == "Calculadora":
           f"🔹 Depreciação: **R$ {depreciacao_atual:.2f}/h** | Consumo:"
           f" **{consumo_atual}W**"
       )
-
-      fil_selecionado = st.selectbox(
-          "Selecione o Filamento", list(dados["filamentos"].keys())
-      )
-      preco_kg_atual = dados["filamentos"][fil_selecionado]
-
-      st.info(f"🔹 Preço do Kg ({fil_selecionado}): **R$ {preco_kg_atual:.2f}**")
 
       st.subheader("2. Parâmetros de Impressão")
 
@@ -162,15 +165,59 @@ if menu == "Calculadora":
       if tempo_h <= 0:
         tempo_h = 0.01
 
-      peso_g = st.number_input(
-          "Quantidade Total de Filamento para a mesa (gramas)",
-          min_value=0.1,
-          value=50.0,
+      st.write("---")
+      st.write(
+          "**Quantidade total de Filamento para a mesa (gramas):**"
       )
+
+      # Gerenciamento dinâmico de múltiplos filamentos na calculadora
+      if "qtd_filamentos_calc" not in st.session_state:
+        st.session_state["qtd_filamentos_calc"] = 1
+
+      if st.button("➕ Adicionar Filamento"):
+        st.session_state["qtd_filamentos_calc"] += 1
+        st.rerun()
+
+      if st.button("➖ Remover Último") and st.session_state["qtd_filamentos_calc"] > 1:
+        st.session_state["qtd_filamentos_calc"] -= 1
+        st.rerun()
+
+      filamentos_escolhidos_calc = []
+      opcoes_filamentos = list(dados["filamentos"].keys())
+
+      # Mapeia nome formatado "Marca - Nome"
+      mapa_fil_formatado = {
+          f"{info['marca']} - {nome}": nome
+          for nome, info in dados["filamentos"].items()
+      }
+      lista_formatada = list(mapa_fil_formatado.keys())
+
+      for i in range(st.session_state["qtd_filamentos_calc"]):
+        st.markdown(f"**Filamento #{i+1}**")
+        fil_formatado_escolhido = st.selectbox(
+            f"Nome do filamento selecionado #{i+1}",
+            lista_formatada,
+            key=f"calc_fil_{i}",
+        )
+        nome_real_fil = mapa_fil_formatado[fil_formatado_escolhido]
+        preco_kg_fil = dados["filamentos"][nome_real_fil]["preco"]
+
+        gramas_fil = st.number_input(
+            f"Quantidade em gramas (Filamento #{i+1})",
+            min_value=0.0,
+            value=50.0 if i == 0 else 0.0,
+            key=f"calc_gramas_{i}",
+        )
+
+        filamentos_escolhidos_calc.append({
+            "nome": nome_real_fil,
+            "preco_kg": preco_kg_fil,
+            "gramas": gramas_fil,
+        })
 
     with col_dir:
       st.subheader(
-          "3. Materiais Adicionais por Unidade (Embalagens/Extras)"
+          "3. Embalagens e Materiais por Unidade"
       )
       materiais_escolhidos = []
       if dados["embalagens"]:
@@ -194,7 +241,7 @@ if menu == "Calculadora":
           "Comissão do Site / Marketplace (%)",
           min_value=0.0,
           max_value=50.0,
-          value=12.0,
+          value=2.0,
           format="%.1f",
           key="com_input",
       )
@@ -212,7 +259,12 @@ if menu == "Calculadora":
 
     # --- BOTÃO DE CALCULAR ---
     if st.button("Calcular Preço", type="primary", use_container_width=True):
-      custo_material_total = (preco_kg_atual / 1000) * peso_g
+      # Soma o custo de todos os filamentos adicionados
+      custo_material_total = sum(
+          (f["preco_kg"] / 1000) * f["gramas"] for f in filamentos_escolhidos_calc
+      )
+      peso_total_g = sum(f["gramas"] for f in filamentos_escolhidos_calc)
+
       consumo_kwh = (consumo_atual / 1000) * tempo_h
       custo_energia_total = consumo_kwh * kw_h_atual
       custo_maquina_total = depreciacao_atual * tempo_h
@@ -251,9 +303,9 @@ if menu == "Calculadora":
           "taxa_comissao_pct": taxa_comissao,
           "detalhes": {
               "impressora": imp_selecionada,
-              "filamento": fil_selecionado,
+              "filamentos_usados": filamentos_escolhidos_calc,
               "qtd_pecas_mesa": qtd_pecas_mesa,
-              "peso_total_g": peso_g,
+              "peso_total_g": peso_total_g,
               "tempo_h": tempo_h,
               "tempo_formatado": f"{horas_imp}h {minutos_imp}min",
               "custo_material_unit": custo_material_unit,
@@ -310,9 +362,15 @@ if menu == "Calculadora":
       )
       st.write(f"- **Impressora usada:** {det['impressora']}")
       st.write(f"- **Tempo Total da Mesa:** {tempo_str_exp}")
+      st.write(f"- **Peso Total de Filamento:** {det['peso_total_g']}g")
+      for fil_u in det["filamentos_usados"]:
+        st.write(
+            f"  - {fil_u['nome']} ({fil_u['gramas']}g): R$ "
+            f"{(fil_u['preco_kg'] / 1000) * fil_u['gramas']:.2f}"
+        )
       st.write(
-          f"- **Filamento por peça ({det['peso_total_g']}g /"
-          f" {det['qtd_pecas_mesa']}un):** R$ {det['custo_material_unit']:.2f}"
+          f"- **Filamento por peça (Unitário):** R$"
+          f" {det['custo_material_unit']:.2f}"
       )
       st.write(
           f"- **Energia elétrica (por peça):** R$ {det['custo_energia_unit']:.2f}"
@@ -333,12 +391,12 @@ if menu == "Calculadora":
 
     st.divider()
     st.subheader("💾 Salvar Produto")
-    nome_produto = st.text_input("Título / Nome do Produto para Salvar")
+    nome_produto = st.text_input("Título / Nome do Produto")
     categoria_escolhida = st.selectbox(
         "Categoria do Produto", CATEGORIAS_PRODUTOS, key="select_cat_salvar"
     )
 
-    if st.button("Salvar no Histórico de Produtos", key="btn_salvar_prod"):
+    if st.button("Salvar", key="btn_salvar_prod"):
       if nome_produto.strip() == "":
         st.error("Por favor, digite um título para o produto.")
       else:
@@ -355,17 +413,13 @@ if menu == "Calculadora":
         }
         dados["produtos_salvos"].append(novo_prod)
         salvar_dados(dados)
-        st.success(
-            f"Produto '{nome_produto}' salvo na categoria '{categoria_escolhida}'"
-            " com sucesso!"
-        )
+        st.success("Produto salvo com sucesso!")
 
 
 # ==========================================
 # 2. PRODUTOS
 # ==========================================
 elif menu == "Produtos":
-  # Cabeçalho compacto: Título à esquerda e Botão de Backup alinhado à direita
   col_tit, col_btn = st.columns([3, 1])
   with col_tit:
     st.title("📦 Produtos")
@@ -383,7 +437,6 @@ elif menu == "Produtos":
 
   st.divider()
 
-  # --- FILTRO POR CATEGORIA (Caixas de seleção em 2 colunas) ---
   st.write("**Filtrar por Categoria:**")
 
   if "cat_todos" not in st.session_state:
@@ -401,23 +454,21 @@ elif menu == "Produtos":
   col_f1, col_f2 = st.columns(2)
 
   with col_f1:
-    st.checkbox("📋 Todos", key="cat_todos", on_change=toggle_todos)
+    st.checkbox("Selecionar Todos", key="cat_todos", on_change=toggle_todos)
     cat_col1 = CATEGORIAS_PRODUTOS[0:3]
     for cat in cat_col1:
       st.checkbox(cat, key=f"cat_{cat}")
 
   with col_f2:
-    st.write("")  # Espaçamento para alinhamento visual
+    st.write("")
     cat_col2 = CATEGORIAS_PRODUTOS[3:6]
     for cat in cat_col2:
       st.checkbox(cat, key=f"cat_{cat}")
 
-  # Verifica se todas estão marcadas individualmente para ligar o "Todos"
   todas_marcadas = all(st.session_state[f"cat_{cat}"] for cat in CATEGORIAS_PRODUTOS)
   if todas_marcadas and not st.session_state["cat_todos"]:
     st.session_state["cat_todos"] = True
 
-  # --- CAMPO DE PESQUISA (Mesmo bloco visual, sem barra divisoria separadora) ---
   termo_pesquisa = st.text_input(
       "🔍 Pesquisar produto pelo nome...", ""
   ).strip().lower()
@@ -474,8 +525,7 @@ elif menu == "Produtos":
               "tempo_formatado", f"{det_prod['tempo_h']:.2f}h"
           )
           st.write(
-              f"**Impressora:** {det_prod['impressora']} | **Filamento:**"
-              f" {det_prod['filamento']} | **Lote na Mesa:**"
+              f"**Impressora:** {det_prod['impressora']} | **Lote na Mesa:**"
               f" {det_prod.get('qtd_pecas_mesa', 1)} un | **Tempo:** {tempo_str}"
           )
 
@@ -486,10 +536,10 @@ elif menu == "Produtos":
 
 
 # ==========================================
-# 3. FILAMENTOS
+# 3. FILAMENTOS (Com suporte a Marca)
 # ==========================================
 elif menu == "Filamentos":
-  st.title("🧵 Gerenciamento de Filamentos")
+  st.title("🧵 Filamentos")
 
   if "editando_fil" not in st.session_state:
     st.session_state["editando_fil"] = None
@@ -497,36 +547,47 @@ elif menu == "Filamentos":
   with st.form("form_filamento"):
     edit_key = st.session_state["editando_fil"]
     val_nome = edit_key if edit_key else ""
-    val_preco = dados["filamentos"][edit_key] if edit_key else 85.0
+    val_marca = (
+        dados["filamentos"][edit_key]["marca"]
+        if edit_key and edit_key in dados["filamentos"]
+        else ""
+    )
+    val_preco = (
+        dados["filamentos"][edit_key]["preco"]
+        if edit_key and edit_key in dados["filamentos"]
+        else 85.0
+    )
 
+    marca_input = st.text_input("Marca do Filamento", value=val_marca)
     nome_input = st.text_input("Nome do Filamento", value=val_nome)
     preco_input = st.number_input(
         "Preço do Quilo (R$)", min_value=0.0, value=float(val_preco)
     )
-    btn_txt = (
-        "Atualizar Filamento" if edit_key else "Adicionar Novo Filamento"
-    )
+    btn_txt = "Atualizar" if edit_key else "Salvar"
     submit_fil = st.form_submit_button(btn_txt)
 
     if submit_fil:
-      if nome_input.strip() != "":
+      if nome_input.strip() != "" and marca_input.strip() != "":
         if edit_key and edit_key != nome_input.strip():
           del dados["filamentos"][edit_key]
-        dados["filamentos"][nome_input.strip()] = preco_input
+        dados["filamentos"][nome_input.strip()] = {
+            "marca": marca_input.strip(),
+            "preco": preco_input,
+        }
         salvar_dados(dados)
         st.session_state["editando_fil"] = None
         st.success("Filamento salvo com sucesso!")
         st.rerun()
       else:
-        st.error("O nome não pode estar em branco.")
+        st.error("Preencha a Marca e o Nome do filamento.")
 
   st.divider()
   st.subheader("📋 Filamentos Cadastrados:")
   if dados["filamentos"]:
-    for fil, preco in list(dados["filamentos"].items()):
+    for fil, info in list(dados["filamentos"].items()):
       c1, c2, c3, c4 = st.columns([3, 2, 1, 1])
-      c1.write(f"**{fil}**")
-      c2.write(f"R$ {preco:.2f} / kg")
+      c1.write(f"**{info['marca']} - {fil}**")
+      c2.write(f"R$ {info['preco']:.2f} / kg")
       if c3.button("Editar", key=f"edit_fil_{fil}"):
         st.session_state["editando_fil"] = fil
         st.rerun()
@@ -542,7 +603,7 @@ elif menu == "Filamentos":
 # 4. IMPRESSORAS
 # ==========================================
 elif menu == "Impressoras":
-  st.title("🖨️ Gerenciamento de Impressoras")
+  st.title("🖨️ Impressoras")
 
   if "editando_imp" not in st.session_state:
     st.session_state["editando_imp"] = None
@@ -560,9 +621,7 @@ elif menu == "Impressoras":
         "Depreciação (R$/h)", min_value=0.0, value=float(val_dep), format="%.2f"
     )
     cons_in = st.number_input("Consumo (Watts)", min_value=0.0, value=val_cons)
-    btn_imp_txt = (
-        "Atualizar Impressora" if edit_imp else "Cadastrar Impressora"
-    )
+    btn_imp_txt = "Atualizar" if edit_imp else "Cadastrar"
     submit_imp = st.form_submit_button(btn_imp_txt)
 
     if submit_imp:

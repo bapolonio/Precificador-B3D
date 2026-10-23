@@ -68,10 +68,11 @@ st.markdown(
         border-color: #2BDE55 !important;
     }
 
-    /* Estilo para deixar produtos inativos com fundo vermelho bem claro e sutil */
-    .produto-inativo-expander div[data-testid="stExpander"] {
-        background-color: rgba(255, 82, 82, 0.12) !important;
-        border: 1px solid rgba(255, 82, 82, 0.3) !important;
+    /* Estilo para pintar APENAS o cabeçalho (barra principal) do expansor de produtos inativos com vermelho claro e sutil */
+    .produto-inativo-expander details summary {
+        background-color: rgba(255, 82, 82, 0.15) !important;
+        border: 1px solid rgba(255, 82, 82, 0.35) !important;
+        border-radius: 6px !important;
     }
     </style>
 """,
@@ -761,7 +762,7 @@ elif menu == "Produtos":
         sku_str = sku_prod if sku_prod else "N/A"
         preco_str = f"R$ {preco_mostrado:.2f}"
 
-        # Aplica a classe CSS de fundo vermelho claro e sutil se o produto for inativo
+        # Aplica a classe CSS para estilizar apenas a barra principal do expansor quando inativo
         if status_prod == "Inativo":
           st.markdown('<div class="produto-inativo-expander">', unsafe_allow_html=True)
 

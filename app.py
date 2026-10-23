@@ -5,7 +5,7 @@ import streamlit as st
 # Configuração da página e layout
 st.set_page_config(page_title="Precificador B3D", page_icon="🖨️", layout="wide")
 
-# --- ESTILIZAÇÃO CSS (Cor Primária Verde #B2DE55 e Estilo Forçado do Botão) ---
+# --- ESTILIZAÇÃO CSS (Cor Primária Verde #B2DE55, Botão e Espaçamento do Menu) ---
 st.markdown(
     """
     <style>
@@ -21,6 +21,14 @@ st.markdown(
     div.stButton > button:hover {
         background-color: #9ec944 !important;
         color: #1E1E1E !important;
+    }
+    /* Aumenta o espaçamento entre os itens do rádio no menu lateral */
+    div.stRadio > div {
+        gap: 12px !important;
+    }
+    div.stRadio label {
+        padding-top: 6px !important;
+        padding-bottom: 6px !important;
     }
     </style>
 """,
@@ -211,12 +219,14 @@ if menu == "🧮 Calculadora (Início)":
 
       preco_venda_calculado = subtotal_com_lucro / (1 - taxa_comissao_dec)
       valor_comissao_calc = preco_venda_calculado * taxa_comissao_dec
-      lucro_reais_calc = preco_venda_calculado - custo_producao - valor_comissao_calc
+      lucro_calc_reais = (
+          preco_venda_calculado - custo_producao - valor_comissao_calc
+      )
 
       st.session_state["ultimo_calculo"] = {
           "custo_producao": custo_producao,
           "preco_venda_calculado": preco_venda_calculado,
-          "lucro_calc_reais": lucro_reais_calc,
+          "lucro_calc_reais": lucro_calc_reais,
           "lucro_calc_pct": lucro_desejado,
           "taxa_comissao_pct": taxa_comissao,
           "detalhes": {
@@ -255,12 +265,6 @@ if menu == "🧮 Calculadora (Início)":
             key="input_preco_def",
         )
 
-      # Cálculo inverso para achar a margem real baseada no preço definido
-      # Preço_Definido = [Custo + Comissão(Preço_Definido)] * (1 + Lucro_Real)
-      # Comissão = Preço_Definido * (taxa_comissao_pct / 100)
-      # Líquido após comissão = Preço_Definido * (1 - taxa_comissao_dec)
-      # Lucro_Real_Reais = Líquido - Custo_Producao
-      # Lucro_Real_Pct = (Lucro_Real_Reais / Custo_Producao) * 100
       taxa_com_dec = calc["taxa_comissao_pct"] / 100.0
       liquido_apos_comissao = preco_definido * (1 - taxa_com_dec)
       lucro_real_reais = liquido_apos_comissao - calc["custo_producao"]
@@ -319,20 +323,26 @@ if menu == "🧮 Calculadora (Início)":
 
 
 # ==========================================
-# 2. PRODUTOS SALVOS
+# 2. PRODUTOS SALVOS (Com Botão de Backup JSON)
 # ==========================================
 elif menu == "📦 Produtos Salvos":
   st.title("📦 Produtos Precificados e Salvos")
   st.write("Histórico de todos os produtos salvos.")
 
+  # Botão de Download de Backup do JSON
+  json_str = json.dumps(dados, ensure_ascii=False, indent=4)
+  st.download_button(
+      label="📥 Fazer Backup da Lista (Baixar JSON)",
+      data=json_str,
+      file_name="dados_b3d_backup.json",
+      mime="application/json",
+  )
+
+  st.divider()
+
   if not dados["produtos_salvos"]:
     st.info("Nenhum produto salvo ainda.")
   else:
-    if st.button("🗑️ Limpar Todos os Produtos"):
-      dados["produtos_salvos"] = []
-      salvar_dados(dados)
-      st.rerun()
-
     for idx, prod in enumerate(dados["produtos_salvos"]):
       preco_mostrado = prod.get("preco_definido", prod.get("preco_venda", 0.0))
       with st.expander(

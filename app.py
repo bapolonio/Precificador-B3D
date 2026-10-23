@@ -5,10 +5,16 @@ import streamlit as st
 # Configuração da página e layout
 st.set_page_config(page_title="Precificador B3D", page_icon="🖨️", layout="wide")
 
-# --- ESTILIZAÇÃO CSS (Cor Primária Verde #B2DE55, Botão e Espaçamento do Menu) ---
+# --- ESTILIZAÇÃO CSS (Remove o espaço morto do topo, cor #B2DE55 e espaçamentos) ---
 st.markdown(
     """
     <style>
+    /* Remove o espaço em branco excessivo no topo da página */
+    .block-container {
+        padding-top: 1.5rem !important;
+        padding-bottom: 2rem !important;
+    }
+    
     /* Força o texto do botão principal a ficar grande, negrito e escuro */
     div.stButton > button {
         background-color: #B2DE55 !important;
@@ -266,7 +272,7 @@ if menu == "Calculadora":
           },
       }
 
-  # --- EXIBIÇÃO FORA DO BLOCO DE COLUNAS (SEMPRE VISÍVEL APÓS CLICAR) ---
+  # --- EXIBIÇÃO FORA DO BLOCO DE COLUNAS ---
   if "ultimo_calculo" in st.session_state:
     calc = st.session_state["ultimo_calculo"]
     st.divider()

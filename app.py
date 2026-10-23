@@ -341,8 +341,8 @@ if menu == "Calculadora":
 
     st.divider()
 
-    st.subheader("3. Embalagens e Materiais Adicionais (Custo Total do Lote ou Custo Fixo)")
-    st.write("Informe o custo total ou valor aplicado para este lote de peças:")
+    st.subheader("3. Embalagens e Materiais Adicionais")
+    st.write("Selecione os itens e informe a quantidade a ser utilizada:")
     
     extras_salvos = {}
     if prod_em_edicao:
@@ -356,14 +356,14 @@ if menu == "Calculadora":
       for emb, preco_emb in dados["embalagens"].items():
         with cols_emb[col_idx % 4]:
           ja_usado = emb in extras_salvos
-          usar = st.checkbox(f"{emb}", value=ja_usado, key=f"chk_{emb}")
+          usar = st.checkbox(f"{emb} (R$ {preco_emb:.2f} un)", value=ja_usado, key=f"chk_{emb}")
           if usar:
-            custo_default_mat = extras_salvos.get(emb, preco_emb)
-            custo_mat = st.number_input(
-                f"Custo total de {emb} (R$)", min_value=0.0, value=float(custo_default_mat), key=f"qtd_{emb}", format="%.2f"
+            qtd_default_mat = extras_salvos.get(emb, 1)
+            qtd_mat = st.number_input(
+                f"Qtd de {emb}", min_value=1, value=int(qtd_default_mat), key=f"qtd_{emb}", step=1
             )
             materiais_escolhidos.append(
-                {"nome": emb, "preco_unit": custo_mat, "qtd": 1}
+                {"nome": emb, "preco_unit": preco_emb, "qtd": qtd_mat}
             )
         col_idx += 1
     else:
@@ -430,7 +430,6 @@ if menu == "Calculadora":
 
     st.write("")
     if st.button("Calcular Preço", type="primary", use_container_width=True):
-      # Custo total do filamento para o lote inteiro, dividido igualmente pelas peças do lote
       custo_material_total_lote = sum(
           (f["preco_kg"] / 1000) * f["gramas"] for f in filamentos_escolhidos_calc
       )
@@ -440,13 +439,15 @@ if menu == "Calculadora":
       custo_energia_total = consumo_kwh * kw_h_atual
       custo_maquina_total = depreciacao_atual * tempo_h
 
-      # Custos totais divididos pelo número de peças do lote para obter o unitário correto
+      # Custos de produção da máquina/filamento divididos pelo lote
       custo_material_unit = custo_material_total_lote / qtd_pecas_mesa
       custo_energia_unit = custo_energia_total / qtd_pecas_mesa
       custo_maquina_unit = custo_maquina_total / qtd_pecas_mesa
 
-      # O custo dos extras inseridos é tratado como o valor total do lote e dividido pelo lote
-      custo_extras_unit = sum(item["preco_unit"] for item in materiais_escolhidos) / qtd_pecas_mesa
+      # O custo total dos materiais extras/embalagens escolhidos (quantidade * preço unitário cadastrado)
+      custo_extras_total = sum(item["preco_unit"] * item["qtd"] for item in materiais_escolhidos)
+      # Adicionado como um custo adicional por unidade (dividido pelo lote ou distribuído proporcionalmente)
+      custo_extras_unit = custo_extras_total / qtd_pecas_mesa
 
       custo_mo_total = valor_hh * tempo_hh
       custo_mo_unit = custo_mo_total / qtd_pecas_mesa
@@ -567,8 +568,9 @@ if menu == "Calculadora":
       st.text(f"- Mão de Obra: {hh_t}h a R$ {hh_v:.2f}/h (R$ {c_mo:.2f} unit.)")
 
       for ext in det["extras"]:
+        custo_ext_total = ext['preco_unit'] * ext['qtd']
         st.write(
-            f"- **{ext['nome']} (Total do lote):** R$ {ext['preco_unit']:.2f} (R$ {ext['preco_unit'] / det['qtd_pecas_mesa']:.2f} unit.)"
+            f"- **{ext['nome']} ({ext['qtd']}x):** R$ {custo_ext_total:.2f} total (R$ {custo_ext_total / det['qtd_pecas_mesa']:.2f} unit.)"
         )
       st.write(
           f"- **Comissão do Site ({calc['taxa_comissao_pct']}%):** R$ {preco_definido * taxa_com_dec:.2f}"
@@ -806,7 +808,8 @@ elif menu == "Produtos":
           if extras_lista:
             st.write("**Materiais Extras / Embalagens Utilizados:**")
             for ext in extras_lista:
-              st.write(f"- {ext['nome']}: R$ {ext['preco_unit']:.2f} total (R$ {ext['preco_unit'] / det_prod.get('qtd_pecas_mesa', 1):.2f} unit.)")
+              custo_ext_total = ext['preco_unit'] * ext['qtd']
+              st.write(f"- {ext['nome']}: {ext['qtd']} un (R$ {ext['preco_unit']:.2f} cada) = R$ {custo_ext_total:.2f}")
           else:
             st.write("**Materiais Extras / Embalagens:** Nenhum extra selecionado.")
 
@@ -874,7 +877,7 @@ elif menu == "Filamentos":
         st.success("Filamento salvo com sucesso!")
         st.rerun()
       else:
-        st.error("Preencha a Marca e o Nome do filamento.")
+        st.error("Preencha a Marca e O Nome do filamento.")
 
   st.divider()
 

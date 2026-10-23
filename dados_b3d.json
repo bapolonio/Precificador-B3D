@@ -1,0 +1,24 @@
+{
+    "filamentos": {
+        "PLA Padrão": 85.0,
+        "PETG": 90.0,
+        "ABS": 95.0,
+        "Velvet": 110.0
+    },
+    "impressoras": {
+        "Bambu Lab A1": {
+            "depreciacao": 1.2,
+            "consumo": 150.0
+        },
+        "Bambu Lab P2S": {
+            "depreciacao": 1.8,
+            "consumo": 200.0
+        }
+    },
+    "kw_h": 0.85,
+    "embalagens": {
+        "Caixa Padrão": 3.5,
+        "Plástico Bolha": 1.0
+    },
+    "produtos_salvos": []
+}

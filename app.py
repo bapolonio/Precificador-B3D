@@ -53,7 +53,6 @@ def carregar_dados():
   if os.path.exists(DB_FILE):
     with open(DB_FILE, "r", encoding="utf-8") as f:
       dados = json.load(f)
-      # Garante compatibilidade caso produtos antigos não tenham categoria
       for p in dados.get("produtos_salvos", []):
         if "categoria" not in p:
           p["categoria"] = "Utilitários & Ferramentas"
@@ -89,7 +88,6 @@ if os.path.exists("logo.png"):
 
 st.sidebar.title("Menu")
 
-# Opções principais (Produtos no final)
 menu_opcoes = [
     "Calculadora",
     "Filamentos",
@@ -100,7 +98,6 @@ menu_opcoes = [
 ]
 menu = st.sidebar.radio("MenuPrincipal", menu_opcoes, label_visibility="collapsed")
 
-# Submenu de Categorias exibido apenas quando "Produtos" está selecionado
 categoria_selecionada_filtro = "Todos"
 if menu == "Produtos":
   st.sidebar.markdown("---")
@@ -152,10 +149,6 @@ if menu == "Calculadora":
           min_value=1,
           value=1,
           step=1,
-          help=(
-              "Quantas peças iguais são impressas simultaneamente na mesma"
-              " fornada."
-          ),
       )
 
       col_h1, col_h2 = st.columns(2)
@@ -176,7 +169,6 @@ if menu == "Calculadora":
           "Quantidade Total de Filamento para a mesa (gramas)",
           min_value=0.1,
           value=50.0,
-          help="Peso total consumido na impressão de todas as unidades juntas.",
       )
 
     with col_dir:
@@ -274,107 +266,103 @@ if menu == "Calculadora":
           },
       }
 
-    if "ultimo_calculo" in st.session_state:
-      calc = st.session_state["ultimo_calculo"]
-      st.divider()
-      st.subheader("📊 Resultado da Precificação (Por Unidade)")
+  # --- EXIBIÇÃO FORA DO BLOCO DE COLUNAS (SEMPRE VISÍVEL APÓS CLICAR) ---
+  if "ultimo_calculo" in st.session_state:
+    calc = st.session_state["ultimo_calculo"]
+    st.divider()
+    st.subheader("📊 Resultado da Precificação (Por Unidade)")
 
-      r1, r2, r3 = st.columns(3)
-      r1.metric("Custo de Produção (Unit.)", f"R$ {calc['custo_producao']:.2f}")
-      r2.metric(
-          f"Preço Calculado Unit. ({calc['lucro_calc_pct']:.0f}% Lucro)",
-          f"R$ {calc['preco_venda_calculado']:.2f}",
+    r1, r2, r3 = st.columns(3)
+    r1.metric("Custo de Produção (Unit.)", f"R$ {calc['custo_producao']:.2f}")
+    r2.metric(
+        f"Preço Calculado Unit. ({calc['lucro_calc_pct']:.0f}% Lucro)",
+        f"R$ {calc['preco_venda_calculado']:.2f}",
+    )
+
+    st.markdown("### 💎 Definição Manual do Preço Final (Unitário)")
+    col_def1, col_def2 = st.columns(2)
+    with col_def1:
+      preco_definido = st.number_input(
+          "Preço Final Definido por Unidade (R$)",
+          min_value=0.0,
+          value=float(round(calc["preco_venda_calculado"], 2)),
+          format="%.2f",
+          key="input_preco_def",
       )
 
-      # --- CAMPO DE PREÇO FINAL DEFINIDO PELO USUÁRIO & CÁLCULO REVERSO ---
-      st.markdown("### 💎 Definição Manual do Preço Final (Unitário)")
-      col_def1, col_def2 = st.columns(2)
-      with col_def1:
-        preco_definido = st.number_input(
-            "Preço Final Definido por Unidade (R$)",
-            min_value=0.0,
-            value=float(round(calc["preco_venda_calculado"], 2)),
-            format="%.2f",
-            key="input_preco_def",
-        )
+    taxa_com_dec = calc["taxa_comissao_pct"] / 100.0
+    liquido_apos_comissao = preco_definido * (1 - taxa_com_dec)
+    lucro_real_reais = liquido_apos_comissao - calc["custo_producao"]
+    lucro_real_pct = (
+        (lucro_real_reais / calc["custo_producao"]) * 100
+        if calc["custo_producao"] > 0
+        else 0.0
+    )
 
-      taxa_com_dec = calc["taxa_comissao_pct"] / 100.0
-      liquido_apos_comissao = preco_definido * (1 - taxa_com_dec)
-      lucro_real_reais = liquido_apos_comissao - calc["custo_producao"]
-      lucro_real_pct = (
-          (lucro_real_reais / calc["custo_producao"]) * 100
-          if calc["custo_producao"] > 0
-          else 0.0
+    with col_def2:
+      st.metric(
+          "Margem de Lucro Real Obtida (Unit.)",
+          f"{lucro_real_pct:.1f}%",
+          delta=f"R$ {lucro_real_reais:.2f} de lucro líquido por peça",
       )
 
-      with col_def2:
-        st.metric(
-            "Margem de Lucro Real Obtida (Unit.)",
-            f"{lucro_real_pct:.1f}%",
-            delta=f"R$ {lucro_real_reais:.2f} de lucro líquido por peça",
-        )
-
-      with st.expander("🔍 Ver Detalhamento dos Custos Unitários"):
-        det = calc["detalhes"]
-        tempo_str_exp = det.get(
-            "tempo_formatado", f"{det['tempo_h']:.2f}h"
-        )
+    with st.expander("🔍 Ver Detalhamento dos Custos Unitários"):
+      det = calc["detalhes"]
+      tempo_str_exp = det.get("tempo_formatado", f"{det['tempo_h']:.2f}h")
+      st.write(
+          f"- **Lote na Mesa:** {det['qtd_pecas_mesa']} peça(s) impressas juntas"
+      )
+      st.write(f"- **Impressora usada:** {det['impressora']}")
+      st.write(f"- **Tempo Total da Mesa:** {tempo_str_exp}")
+      st.write(
+          f"- **Filamento por peça ({det['peso_total_g']}g /"
+          f" {det['qtd_pecas_mesa']}un):** R$ {det['custo_material_unit']:.2f}"
+      )
+      st.write(
+          f"- **Energia elétrica (por peça):** R$ {det['custo_energia_unit']:.2f}"
+      )
+      st.write(
+          f"- **Depreciação de Máquina (por peça):** R$"
+          f" {det['custo_maquina_unit']:.2f}"
+      )
+      for ext in det["extras"]:
         st.write(
-            f"- **Lote na Mesa:** {det['qtd_pecas_mesa']} peça(s) impressas"
-            " juntas"
+            f"- **{ext['nome']} ({ext['qtd']}x por peça):** R$"
+            f" {ext['preco_unit'] * ext['qtd']:.2f}"
         )
-        st.write(f"- **Impressora usada:** {det['impressora']}")
-        st.write(f"- **Tempo Total da Mesa:** {tempo_str_exp}")
-        st.write(
-            f"- **Filamento por peça ({det['peso_total_g']}g /"
-            f" {det['qtd_pecas_mesa']}un):** R$ {det['custo_material_unit']:.2f}"
-        )
-        st.write(
-            f"- **Energia elétrica (por peça):** R$"
-            f" {det['custo_energia_unit']:.2f}"
-        )
-        st.write(
-            f"- **Depreciação de Máquina (por peça):** R$"
-            f" {det['custo_maquina_unit']:.2f}"
-        )
-        for ext in det["extras"]:
-          st.write(
-              f"- **{ext['nome']} ({ext['qtd']}x por peça):** R$"
-              f" {ext['preco_unit'] * ext['qtd']:.2f}"
-          )
-        st.write(
-            f"- **Comissão do Site ({calc['taxa_comissao_pct']}%):** R$"
-            f" {preco_definido * taxa_com_dec:.2f}"
-        )
-
-      st.divider()
-      st.subheader("💾 Salvar Produto")
-      nome_produto = st.text_input("Título / Nome do Produto para Salvar")
-      categoria_escolhida = st.selectbox(
-          "Categoria do Produto", CATEGORIAS_PRODUTOS, key="select_cat_salvar"
+      st.write(
+          f"- **Comissão do Site ({calc['taxa_comissao_pct']}%):** R$"
+          f" {preco_definido * taxa_com_dec:.2f}"
       )
 
-      if st.button("Salvar no Histórico de Produtos", key="btn_salvar_prod"):
-        if nome_produto.strip() == "":
-          st.error("Por favor, digite um título para o produto.")
-        else:
-          novo_prod = {
-              "titulo": nome_produto,
-              "categoria": categoria_escolhida,
-              "preco_definido": preco_definido,
-              "lucro_real_pct": lucro_real_pct,
-              "lucro_real_reais": lucro_real_reais,
-              "custo": calc["custo_producao"],
-              "preco_calculado": calc["preco_venda_calculado"],
-              "lucro_calc_pct": calc["lucro_calc_pct"],
-              "detalhes": calc["detalhes"],
-          }
-          dados["produtos_salvos"].append(novo_prod)
-          salvar_dados(dados)
-          st.success(
-              f"Produto '{nome_produto}' salvo na categoria"
-              f" '{categoria_escolhida}' com sucesso!"
-          )
+    st.divider()
+    st.subheader("💾 Salvar Produto")
+    nome_produto = st.text_input("Título / Nome do Produto para Salvar")
+    categoria_escolhida = st.selectbox(
+        "Categoria do Produto", CATEGORIAS_PRODUTOS, key="select_cat_salvar"
+    )
+
+    if st.button("Salvar no Histórico de Produtos", key="btn_salvar_prod"):
+      if nome_produto.strip() == "":
+        st.error("Por favor, digite um título para o produto.")
+      else:
+        novo_prod = {
+            "titulo": nome_produto,
+            "categoria": categoria_escolhida,
+            "preco_definido": preco_definido,
+            "lucro_real_pct": lucro_real_pct,
+            "lucro_real_reais": lucro_real_reais,
+            "custo": calc["custo_producao"],
+            "preco_calculado": calc["preco_venda_calculado"],
+            "lucro_calc_pct": calc["lucro_calc_pct"],
+            "detalhes": calc["detalhes"],
+        }
+        dados["produtos_salvos"].append(novo_prod)
+        salvar_dados(dados)
+        st.success(
+            f"Produto '{nome_produto}' salvo na categoria '{categoria_escolhida}'"
+            " com sucesso!"
+        )
 
 
 # ==========================================
@@ -384,7 +372,6 @@ elif menu == "Produtos":
   st.title("📦 Produtos Salvos")
   st.write("Histórico de todos os produtos cadastrados.")
 
-  # Botão de Backup JSON
   json_str = json.dumps(dados, ensure_ascii=False, indent=4)
   st.download_button(
       label="📥 Fazer Backup da Lista (Baixar JSON)",
@@ -395,12 +382,10 @@ elif menu == "Produtos":
 
   st.divider()
 
-  # Campo de Pesquisa por nome do produto
   termo_pesquisa = st.text_input(
       "🔍 Pesquisar produto pelo nome...", ""
   ).strip().lower()
 
-  # Filtro de categorias no topo da página (botões lado a lado)
   st.write("**Filtrar por Categoria:**")
   cols_cat = st.columns(len(CATEGORIAS_PRODUTOS) + 1)
 
@@ -413,7 +398,6 @@ elif menu == "Produtos":
     ):
       st.session_state["filtra_cat_pagina"] = cat
 
-  # Recupera categoria ativa (prioriza o menu lateral ou os botões superiores)
   cat_ativa = st.session_state.get(
       "filtra_cat_pagina", categoria_selecionada_filtro
   )
@@ -426,7 +410,6 @@ elif menu == "Produtos":
   if not dados["produtos_salvos"]:
     st.info("Nenhum produto salvo ainda.")
   else:
-    # Aplica filtros de categoria e pesquisa
     produtos_filtrados = []
     for p in dados["produtos_salvos"]:
       match_cat = (cat_ativa == "Todos") or (

@@ -276,7 +276,6 @@ if menu == "Calculadora":
     st.write("")
     # --- BOTÃO DE CALCULAR ---
     if st.button("Calcular Preço", type="primary", use_container_width=True):
-      # Pega o primeiro filamento válido para o preço unitário padrão se necessário, mas soma todos
       custo_material_total = sum(
           (f["preco_kg"] / 1000) * f["gramas"] for f in filamentos_escolhidos_calc
       )
@@ -635,4 +634,108 @@ elif menu == "Impressoras":
 
     nome_imp_in = st.text_input("Nome da Impressora", value=val_nome_imp)
     dep_in = st.number_input(
-        "Deprecia
+        "Depreciação (R$/h)", min_value=0.0, value=float(val_dep), format="%.2f"
+    )
+    cons_in = st.number_input("Consumo (Watts)", min_value=0.0, value=val_cons)
+    btn_imp_txt = "Atualizar" if edit_imp else "Cadastrar"
+    submit_imp = st.form_submit_button(btn_imp_txt)
+
+    if submit_imp:
+      if nome_imp_in.strip() != "":
+        if edit_imp and edit_imp != nome_imp_in.strip():
+          del dados["impressoras"][edit_imp]
+        dados["impressoras"][nome_imp_in.strip()] = {
+            "depreciacao": dep_in,
+            "consumo": cons_in,
+        }
+        salvar_dados(dados)
+        st.session_state["editando_imp"] = None
+        st.success("Impressora salva com sucesso!")
+        st.rerun()
+      else:
+        st.error("O nome não pode estar em branco.")
+
+  st.divider()
+  st.subheader("📋 Impressoras Cadastradas:")
+  if dados["impressoras"]:
+    for imp, info in list(dados["impressoras"].items()):
+      ci1, ci2, ci3, ci4 = st.columns([3, 3, 1, 1])
+      ci1.write(f"**{imp}**")
+      ci2.write(f"Dep: R${info['depreciacao']:.2f}/h | {info['consumo']}W")
+      if ci3.button("Editar", key=f"edit_imp_{imp}"):
+        st.session_state["editando_imp"] = imp
+        st.rerun()
+      if ci4.button("Excluir", key=f"del_imp_{imp}"):
+        del dados["impressoras"][imp]
+        salvar_dados(dados)
+        st.rerun()
+  else:
+    st.info("Nenhuma impressora cadastrada.")
+
+
+# ==========================================
+# 5. ENERGIA
+# ==========================================
+elif menu == "Energia":
+  st.title("⚡ Custo de Energia Elétrica")
+  novo_kwh = st.number_input(
+      "Custo da Energia (R$ / kWh)",
+      min_value=0.0,
+      value=float(dados["kw_h"]),
+      format="%.2f",
+  )
+  if st.button("Salvar Custo de Energia"):
+    dados["kw_h"] = novo_kwh
+    salvar_dados(dados)
+    st.success(f"Custo de energia atualizado para R$ {novo_kwh:.2f} / kWh!")
+
+
+# ==========================================
+# 6. EMBALAGENS E MATERIAIS
+# ==========================================
+elif menu == "Embalagens e Materiais":
+  st.title("🎁 Embalagens e Materiais Adicionais")
+
+  if "editando_emb" not in st.session_state:
+    st.session_state["editando_emb"] = None
+
+  with st.form("form_embalagem"):
+    edit_emb = st.session_state["editando_emb"]
+    val_nome_emb = edit_emb if edit_emb else ""
+    val_preco_emb = dados["embalagens"][edit_emb] if edit_emb else 2.00
+
+    nome_emb_in = st.text_input("Nome do Material", value=val_nome_emb)
+    preco_emb_in = st.number_input(
+        "Preço Unitário (R$)", min_value=0.0, value=float(val_preco_emb)
+    )
+    btn_emb_txt = "Atualizar Material" if edit_emb else "Cadastrar Material"
+    submit_emb = st.form_submit_button(btn_emb_txt)
+
+    if submit_emb:
+      if nome_emb_in.strip() != "":
+        if edit_emb and edit_emb != nome_emb_in.strip():
+          del dados["embalagens"][edit_emb]
+        dados["embalagens"][nome_emb_in.strip()] = preco_emb_in
+        salvar_dados(dados)
+        st.session_state["editando_emb"] = None
+        st.success("Material salvo com sucesso!")
+        st.rerun()
+      else:
+        st.error("O nome não pode estar em branco.")
+
+  st.divider()
+  st.subheader("📋 Materiais Cadastrados:")
+  if dados["embalagens"]:
+    for emb, preco in list(dados["embalagens"].items()):
+      ce1, ce2, ce3, ce4 = st.columns([3, 2, 1, 1])
+      ce1.write(f"**{emb}**")
+      ce2.write(f"R$ {preco:.2f} un")
+      if ce3.button("Editar", key=f"edit_emb_{emb}"):
+        st.session_state["editando_emb"] = emb
+        st.rerun()
+      if ce4.button("Excluir", key=f"del_emb_{emb}"):
+        del dados["embalagens"][emb]
+        salvar_dados(dados)
+        st.rerun()
+  else:
+    st.info("Nenhum material cadastrado.")

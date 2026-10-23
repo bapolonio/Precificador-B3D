@@ -2,8 +2,32 @@ import json
 import os
 import streamlit as st
 
-# Configuração da página
+# Configuração da página e layout
 st.set_page_config(page_title="Precificador B3D", page_icon="🖨️", layout="wide")
+
+# --- ESTILIZAÇÃO CSS (Cor Primária Verde #B2DE55) ---
+st.markdown(
+    """
+    <style>
+    /* Botões primários e seletores com a cor #B2DE55 */
+    .stButton > button {
+        background-color: #B2DE55 !important;
+        color: #1E1E1E !important;
+        font-weight: bold;
+        border: none;
+    }
+    .stButton > button:hover {
+        background-color: #9ec944 !important;
+        color: #1E1E1E !important;
+    }
+    /* Sliders e elementos interativos */
+    .stSlider > div > div > div > div {
+        background-color: #B2DE55 !important;
+    }
+    </style>
+""",
+    unsafe_allow_html=True,
+)
 
 # --- ARQUIVO DE BANCO DE DADOS LOCAL ---
 DB_FILE = "dados_b3d.json"
@@ -21,8 +45,8 @@ def carregar_dados():
           "Velvet": 110.0,
       },
       "impressoras": {
-          "Bambu Lab A1": {"depreciacao": 1.20, "consumo": 150.0},
-          "Bambu Lab P2S": {"depreciacao": 1.80, "consumo": 200.0},
+          "Bambu Lab A1": {"depreciacao": 0.80, "consumo": 150.0},
+          "Bambu Lab P2S": {"depreciacao": 1.00, "consumo": 200.0},
       },
       "kw_h": 0.85,
       "embalagens": {"Caixa Padrão": 3.50, "Plástico Bolha": 1.00},
@@ -38,19 +62,17 @@ def salvar_dados(dados):
 # Inicializa os dados
 dados = carregar_dados()
 
-# --- MENU LATERAL ---
+# --- MENU LATERAL (Links Fixos) ---
 st.sidebar.title("🖨️ B3D - Painel")
-menu = st.sidebar.selectbox(
-    "Navegação",
-    [
-        "🧮 Calculadora (Início)",
-        "📦 Produtos Salvos",
-        "🧵 Filamentos",
-        "🖨️ Impressoras",
-        "⚡ Energia",
-        "🎁 Embalagens e Materiais",
-    ],
-)
+menu_opcoes = [
+    "🧮 Calculadora (Início)",
+    "📦 Produtos Salvos",
+    "🧵 Filamentos",
+    "🖨️ Impressoras",
+    "⚡ Energia",
+    "🎁 Embalagens e Materiais",
+]
+menu = st.sidebar.radio("Navegação", menu_opcoes)
 
 # ==========================================
 # 1. PÁGINA INICIAL: CALCULADORA DE PRECIFICAÇÃO
@@ -69,7 +91,6 @@ if menu == "🧮 Calculadora (Início)":
 
     with col_esq:
       st.subheader("1. Seleção de Equipamento e Insumo")
-      # Seleção de Impressora (Preenche automático)
       imp_selecionada = st.selectbox(
           "Selecione a Impressora", list(dados["impressoras"].keys())
       )
@@ -81,7 +102,6 @@ if menu == "🧮 Calculadora (Início)":
           f" **{consumo_atual}W**"
       )
 
-      # Seleção de Filamento (Preenche automático)
       fil_selecionado = st.selectbox(
           "Selecione o Filamento", list(dados["filamentos"].keys())
       )
@@ -89,7 +109,7 @@ if menu == "🧮 Calculadora (Início)":
 
       st.info(f"🔹 Preço do Kg ({fil_selecionado}): **R$ {preco_kg_atual:.2f}**")
 
-      st.subheader("2. Parâmetros de Impressoração")
+      st.subheader("2. Parâmetros de Impressão")
       tempo_h = st.number_input(
           "Tempo de Impressão (horas)",
           min_value=0.1,
@@ -115,31 +135,68 @@ if menu == "🧮 Calculadora (Início)":
                 {"nome": emb, "preco_unit": preco_emb, "qtd": qtd}
             )
       else:
-        st.write(
-            "Nenhuma embalagem cadastrada. Cadastre no menu lateral se"
-            " precisar."
-        )
+        st.write("Nenhuma embalagem cadastrada.")
 
       st.subheader("4. Margens e Taxas")
       kw_h_atual = dados["kw_h"]
+
+      # Campo numérico + Slider sincronizados para Comissão
+      col_com1, col_com2 = st.columns([1, 2])
+      with col_com1:
+        comissao_num = st.number_input(
+            "Comissão (%)",
+            min_value=0.0,
+            max_value=50.0,
+            value=12.0,
+            format="%.1f",
+            key="com_num",
+        )
+      with col_com2:
+        comissao_slider = st.slider(
+            "Ajustar Comissão",
+            0.0,
+            50.0,
+            comissao_num,
+            format="%.1f%%",
+            key="com_slider",
+            label_visibility="collapsed",
+        )
+      # Sincroniza se mexeu no slider
       taxa_comissao = (
-          st.slider(
-              "Comissão do Site / Marketplace (%)", 0.0, 30.0, 12.0, format="%.1f%%"
-          )
-          / 100
+          comissao_slider if comissao_slider != comissao_num else comissao_num
       )
+      taxa_comissao_dec = taxa_comissao / 100.0
+
+      # Campo numérico + Slider sincronizados para Lucro
+      col_luc1, col_luc2 = st.columns([1, 2])
+      with col_luc1:
+        lucro_num = st.number_input(
+            "Lucro (%)",
+            min_value=0.0,
+            max_value=500.0,
+            value=100.0,
+            format="%.1f",
+            key="luc_num",
+        )
+      with col_luc2:
+        lucro_slider = st.slider(
+            "Ajustar Lucro",
+            0.0,
+            500.0,
+            lucro_num,
+            format="%.1f%%",
+            key="luc_slider",
+            label_visibility="collapsed",
+        )
       lucro_desejado = (
-          st.slider(
-              "Margem de Lucro Desejada (%)", 10.0, 300.0, 100.0, format="%.1f%%"
-          )
-          / 100
+          lucro_slider if lucro_slider != lucro_num else lucro_num
       )
+      lucro_desejado_dec = lucro_desejado / 100.0
 
     # --- BOTÃO DE CALCULAR ---
     if st.button(
         "🚀 Calcular Preço", type="primary", use_container_width=True
     ):
-      # Custos
       custo_material = (preco_kg_atual / 1000) * peso_g
       consumo_kwh = (consumo_atual / 1000) * tempo_h
       custo_energia = consumo_kwh * kw_h_atual
@@ -148,22 +205,18 @@ if menu == "🧮 Calculadora (Início)":
       custo_extras_total = sum(
           item["preco_unit"] * item["qtd"] for item in materiais_escolhidos
       )
-
       custo_producao = (
           custo_material + custo_energia + custo_maquina + custo_extras_total
       )
 
-      # Lucro sobre o custo de produção
-      subtotal_com_lucro = custo_producao * (1 + lucro_desejado)
+      subtotal_com_lucro = custo_producao * (1 + lucro_desejado_dec)
 
-      # Invertendo a taxa de comissão para garantir que o desconto do site venha do preço final
-      if taxa_comissao >= 1.0:
-        taxa_comissao = 0.99  # Proteção contra divisão por zero
+      if taxa_comissao_dec >= 1.0:
+        taxa_comissao_dec = 0.99
 
-      preco_venda_final = subtotal_com_lucro / (1 - taxa_comissao)
-      valor_comissao = preco_venda_final * taxa_comissao
+      preco_venda_final = subtotal_com_lucro / (1 - taxa_comissao_dec)
+      valor_comissao = preco_venda_final * taxa_comissao_dec
 
-      # Guarda na session_state para exibir e permitir salvar
       st.session_state["ultimo_calculo"] = {
           "custo_producao": custo_producao,
           "preco_venda_final": preco_venda_final,
@@ -181,7 +234,6 @@ if menu == "🧮 Calculadora (Início)":
           },
       }
 
-    # Se já foi calculado, mostra o resultado e a opção de salvar
     if "ultimo_calculo" in st.session_state:
       calc = st.session_state["ultimo_calculo"]
       st.divider()
@@ -233,10 +285,10 @@ if menu == "🧮 Calculadora (Início)":
 # ==========================================
 elif menu == "📦 Produtos Salvos":
   st.title("📦 Produtos Precificados e Salvos")
-  st.write("Aqui fica o histórico de todos os produtos que você salvou.")
+  st.write("Histórico de todos os produtos salvos.")
 
   if not dados["produtos_salvos"]:
-    st.info("Nenhum produto salvo ainda. Faça um cálculo na tela inicial!")
+    st.info("Nenhum produto salvo ainda.")
   else:
     if st.button("🗑️ Limpar Todos os Produtos"):
       dados["produtos_salvos"] = []
@@ -252,10 +304,6 @@ elif menu == "📦 Produtos Salvos":
             f"**Impressora:** {prod['detalhes']['impressora']} | **Filamento:**"
             f" {prod['detalhes']['filamento']}"
         )
-        st.write(
-            f"**Peso:** {prod['detalhes']['peso_g']}g | **Tempo:**"
-            f" {prod['detalhes']['tempo_h']}h"
-        )
         if st.button(f"Excluir produto #{idx+1}", key=f"del_prod_{idx}"):
           dados["produtos_salvos"].pop(idx)
           salvar_dados(dados)
@@ -263,36 +311,51 @@ elif menu == "📦 Produtos Salvos":
 
 
 # ==========================================
-# 3. FILAMENTOS
+# 3. FILAMENTOS (Com Edição e Exclusão)
 # ==========================================
 elif menu == "🧵 Filamentos":
   st.title("🧵 Gerenciamento de Filamentos")
-  st.write("Cadastre e gerencie os tipos de filamento e o preço por quilo.")
+
+  if "editando_fil" not in st.session_state:
+    st.session_state["editando_fil"] = None
 
   with st.form("form_filamento"):
-    novo_nome = st.text_input("Nome do Filamento (ex: PLA Velvet, Silk, etc.)")
-    novo_preco = st.number_input(
-        "Preço do Quilo (R$)", min_value=0.0, value=85.0
+    edit_key = st.session_state["editando_fil"]
+    val_nome = edit_key if edit_key else ""
+    val_preco = dados["filamentos"][edit_key] if edit_key else 85.0
+
+    nome_input = st.text_input("Nome do Filamento", value=val_nome)
+    preco_input = st.number_input(
+        "Preço do Quilo (R$)", min_value=0.0, value=float(val_preco)
     )
-    submit_fil = st.form_submit_button("Adicionar / Atualizar Filamento")
+    btn_txt = (
+        "Atualizar Filamento" if edit_key else "Adicionar Novo Filamento"
+    )
+    submit_fil = st.form_submit_button(btn_txt)
 
     if submit_fil:
-      if novo_nome.strip() != "":
-        dados["filamentos"][novo_nome.strip()] = novo_preco
+      if nome_input.strip() != "":
+        if edit_key and edit_key != nome_input.strip():
+          del dados["filamentos"][edit_key]
+        dados["filamentos"][nome_input.strip()] = preco_input
         salvar_dados(dados)
-        st.success(f"Filamento '{novo_nome}' cadastrado/atualizado com sucesso!")
+        st.session_state["editando_fil"] = None
+        st.success("Filamento salvo com sucesso!")
         st.rerun()
       else:
-        st.error("O nome do filamento não pode estar em branco.")
+        st.error("O nome não pode estar em branco.")
 
   st.divider()
-  st.subheader("📋 Filamentos Cadastrados atualmente:")
+  st.subheader("📋 Filamentos Cadastrados:")
   if dados["filamentos"]:
     for fil, preco in list(dados["filamentos"].items()):
-      col_f1, col_f2, col_f3 = st.columns([3, 2, 1])
-      col_f1.write(f"**{fil}**")
-      col_f2.write(f"R$ {preco:.2f} / kg")
-      if col_f3.button("Excluir", key=f"del_fil_{fil}"):
+      c1, c2, c3, c4 = st.columns([3, 2, 1, 1])
+      c1.write(f"**{fil}**")
+      c2.write(f"R$ {preco:.2f} / kg")
+      if c3.button("Editar", key=f"edit_fil_{fil}"):
+        st.session_state["editando_fil"] = fil
+        st.rerun()
+      if c4.button("Excluir", key=f"del_fil_{fil}"):
         del dados["filamentos"][fil]
         salvar_dados(dados)
         st.rerun()
@@ -301,48 +364,58 @@ elif menu == "🧵 Filamentos":
 
 
 # ==========================================
-# 4. IMPRESSORAS
+# 4. IMPRESSORAS (Com Edição e Exclusão)
 # ==========================================
 elif menu == "🖨️ Impressoras":
   st.title("🖨️ Gerenciamento de Impressoras")
-  st.write("Cadastre suas impressoras, coeficientes de depreciação e consumo.")
+
+  if "editando_imp" not in st.session_state:
+    st.session_state["editando_imp"] = None
 
   with st.form("form_impressora"):
-    nome_imp = st.text_input("Nome da Impressora (ex: Bambu Lab A1)")
-    dep_imp = st.number_input(
-        "Coeficiente de Depreciação / Manutenção (R$/h)",
-        min_value=0.0,
-        value=1.50,
-        format="%.2f",
+    edit_imp = st.session_state["editando_imp"]
+    val_nome_imp = edit_imp if edit_imp else ""
+    val_dep = (
+        dados["impressoras"][edit_imp]["depreciacao"] if edit_imp else 0.80
     )
-    cons_imp = st.number_input(
-        "Consumo de Energia (Watts)", min_value=0.0, value=150.0
+    val_cons = dados["impressoras"][edit_imp]["consumo"] if edit_imp else 150.0
+
+    nome_imp_in = st.text_input("Nome da Impressora", value=val_nome_imp)
+    dep_in = st.number_input(
+        "Depreciação (R$/h)", min_value=0.0, value=float(val_dep), format="%.2f"
     )
-    submit_imp = st.form_submit_button("Cadastrar Impressora")
+    cons_in = st.number_input("Consumo (Watts)", min_value=0.0, value=val_cons)
+    btn_imp_txt = (
+        "Atualizar Impressora" if edit_imp else "Cadastrar Impressora"
+    )
+    submit_imp = st.form_submit_button(btn_imp_txt)
 
     if submit_imp:
-      if nome_imp.strip() != "":
-        dados["impressoras"][nome_imp.strip()] = {
-            "depreciacao": dep_imp,
-            "consumo": cons_imp,
+      if nome_imp_in.strip() != "":
+        if edit_imp and edit_imp != nome_imp_in.strip():
+          del dados["impressoras"][edit_imp]
+        dados["impressoras"][nome_imp_in.strip()] = {
+            "depreciacao": dep_in,
+            "consumo": cons_in,
         }
         salvar_dados(dados)
-        st.success(f"Impressora '{nome_imp}' cadastrada com sucesso!")
+        st.session_state["editando_imp"] = None
+        st.success("Impressora salva com sucesso!")
         st.rerun()
       else:
-        st.error("O nome da impressora não pode estar em branco.")
+        st.error("O nome não pode estar em branco.")
 
   st.divider()
   st.subheader("📋 Impressoras Cadastradas:")
   if dados["impressoras"]:
     for imp, info in list(dados["impressoras"].items()):
-      col_i1, col_i2, col_i3 = st.columns([3, 3, 1])
-      col_i1.write(f"**{imp}**")
-      col_i2.write(
-          f"Depreciação: R$ {info['depreciacao']:.2f}/h | Consumo:"
-          f" {info['consumo']}W"
-      )
-      if col_i3.button("Excluir", key=f"del_imp_{imp}"):
+      ci1, ci2, ci3, ci4 = st.columns([3, 3, 1, 1])
+      ci1.write(f"**{imp}**")
+      ci2.write(f"Dep: R${info['depreciacao']:.2f}/h | {info['consumo']}W")
+      if ci3.button("Editar", key=f"edit_imp_{imp}"):
+        st.session_state["editando_imp"] = imp
+        st.rerun()
+      if ci4.button("Excluir", key=f"del_imp_{imp}"):
         del dados["impressoras"][imp]
         salvar_dados(dados)
         st.rerun()
@@ -355,8 +428,6 @@ elif menu == "🖨️ Impressoras":
 # ==========================================
 elif menu == "⚡ Energia":
   st.title("⚡ Custo de Energia Elétrica")
-  st.write("Defina o valor atual do kW/h cobrado na sua conta de luz.")
-
   novo_kwh = st.number_input(
       "Custo da Energia (R$ / kWh)",
       min_value=0.0,
@@ -370,39 +441,49 @@ elif menu == "⚡ Energia":
 
 
 # ==========================================
-# 6. EMBALAGENS E MATERIAIS
+# 6. EMBALAGENS E MATERIAIS (Com Edição e Exclusão)
 # ==========================================
 elif menu == "🎁 Embalagens e Materiais":
   st.title("🎁 Embalagens e Materiais Adicionais")
-  st.write(
-      "Cadastre caixas, plásticos, brindes ou extras para adicionar aos"
-      " produtos."
-  )
+
+  if "editando_emb" not in st.session_state:
+    st.session_state["editando_emb"] = None
 
   with st.form("form_embalagem"):
-    nome_emb = st.text_input("Nome do Material ou Embalagem (ex: Caixa Kraft)")
-    preco_emb = st.number_input(
-        "Preço Unitário (R$)", min_value=0.0, value=2.00, format="%.2f"
+    edit_emb = st.session_state["editando_emb"]
+    val_nome_emb = edit_emb if edit_emb else ""
+    val_preco_emb = dados["embalagens"][edit_emb] if edit_emb else 2.00
+
+    nome_emb_in = st.text_input("Nome do Material", value=val_nome_emb)
+    preco_emb_in = st.number_input(
+        "Preço Unitário (R$)", min_value=0.0, value=float(val_preco_emb)
     )
-    submit_emb = st.form_submit_button("Cadastrar Material")
+    btn_emb_txt = "Atualizar Material" if edit_emb else "Cadastrar Material"
+    submit_emb = st.form_submit_button(btn_emb_txt)
 
     if submit_emb:
-      if nome_emb.strip() != "":
-        dados["embalagens"][nome_emb.strip()] = preco_emb
+      if nome_emb_in.strip() != "":
+        if edit_emb and edit_emb != nome_emb_in.strip():
+          del dados["embalagens"][edit_emb]
+        dados["embalagens"][nome_emb_in.strip()] = preco_emb_in
         salvar_dados(dados)
-        st.success(f"Material '{nome_emb}' cadastrado com sucesso!")
+        st.session_state["editando_emb"] = None
+        st.success("Material salvo com sucesso!")
         st.rerun()
       else:
-        st.error("O nome do material não pode estar em branco.")
+        st.error("O nome não pode estar em branco.")
 
   st.divider()
   st.subheader("📋 Materiais Cadastrados:")
   if dados["embalagens"]:
     for emb, preco in list(dados["embalagens"].items()):
-      col_e1, col_e2, col_e3 = st.columns([3, 2, 1])
-      col_e1.write(f"**{emb}**")
-      col_e2.write(f"R$ {preco:.2f} un")
-      if col_e3.button("Excluir", key=f"del_emb_{emb}"):
+      ce1, ce2, ce3, ce4 = st.columns([3, 2, 1, 1])
+      ce1.write(f"**{emb}**")
+      ce2.write(f"R$ {preco:.2f} un")
+      if ce3.button("Editar", key=f"edit_emb_{emb}"):
+        st.session_state["editando_emb"] = emb
+        st.rerun()
+      if ce4.button("Excluir", key=f"del_emb_{emb}"):
         del dados["embalagens"][emb]
         salvar_dados(dados)
         st.rerun()

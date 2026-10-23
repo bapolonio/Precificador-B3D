@@ -5,13 +5,17 @@ import streamlit as st
 # Configuração da página e layout
 st.set_page_config(page_title="Precificador B3D", page_icon="🖨️", layout="wide")
 
-# --- ESTILIZAÇÃO CSS (Remove espaço do topo, botões e ajustes visuais) ---
+# --- ESTILIZAÇÃO CSS (Alinhamento do Backup, Compactação e Ajustes Visuais) ---
 st.markdown(
     """
     <style>
     .block-container {
         padding-top: 1.5rem !important;
         padding-bottom: 2rem !important;
+    }
+    /* Alinha o botão de backup verticalmente com o título */
+    .btn-backup-container {
+        margin-top: 12px;
     }
     div.stButton > button {
         background-color: #B2DE55 !important;
@@ -84,7 +88,7 @@ def salvar_dados(dados):
 # Inicializa os dados
 dados = carregar_dados()
 
-# --- MENU LATERAL ---
+# --- MENU LATERAL (Limpo, sem submenu de categorias) ---
 if os.path.exists("logo.png"):
   st.sidebar.image("logo.png", use_container_width=True)
 
@@ -99,15 +103,6 @@ menu_opcoes = [
     "Produtos",
 ]
 menu = st.sidebar.radio("MenuPrincipal", menu_opcoes, label_visibility="collapsed")
-
-categoria_selecionada_filtro = "Todos"
-if menu == "Produtos":
-  st.sidebar.markdown("---")
-  st.sidebar.subheader("📂 Categorias")
-  opcoes_cat_filtro = ["Todos"] + CATEGORIAS_PRODUTOS
-  categoria_selecionada_filtro = st.sidebar.radio(
-      "FiltroCat", opcoes_cat_filtro, label_visibility="collapsed"
-  )
 
 # ==========================================
 # 1. PÁGINA INICIAL: CALCULADORA DE PRECIFICAÇÃO
@@ -367,15 +362,15 @@ if menu == "Calculadora":
 
 
 # ==========================================
-# 2. PRODUTOS SALVOS
+# 2. PRODUTOS
 # ==========================================
 elif menu == "Produtos":
-  # Cabeçalho com Título na Esquerda e Botão de Backup na Direita
+  # Cabeçalho compacto: Título à esquerda e Botão de Backup alinhado à direita
   col_tit, col_btn = st.columns([3, 1])
   with col_tit:
-    st.title("📦 Produtos Salvos")
+    st.title("📦 Produtos")
   with col_btn:
-    st.write("")  # Pequeno ajuste vertical
+    st.markdown('<div class="btn-backup-container">', unsafe_allow_html=True)
     json_str = json.dumps(dados, ensure_ascii=False, indent=4)
     st.download_button(
         label="📥 Fazer Backup (JSON)",
@@ -384,20 +379,19 @@ elif menu == "Produtos":
         mime="application/json",
         use_container_width=True,
     )
+    st.markdown("</div>", unsafe_allow_html=True)
 
   st.divider()
 
   # --- FILTRO POR CATEGORIA (Caixas de seleção em 2 colunas) ---
   st.write("**Filtrar por Categoria:**")
 
-  # Inicializa o estado das checkboxes se não existirem
   if "cat_todos" not in st.session_state:
     st.session_state["cat_todos"] = True
     for cat in CATEGORIAS_PRODUTOS:
       st.session_state[f"cat_{cat}"] = True
 
 
-  # Função chamada ao clicar em "Todos"
   def toggle_todos():
     estado_atual = st.session_state["cat_todos"]
     for cat in CATEGORIAS_PRODUTOS:
@@ -407,29 +401,23 @@ elif menu == "Produtos":
   col_f1, col_f2 = st.columns(2)
 
   with col_f1:
-    todos_checkbox = st.checkbox(
-        "📋 Todos", key="cat_todos", on_change=toggle_todos
-    )
-    # Primeiras 3 categorias reais na coluna 1
+    st.checkbox("📋 Todos", key="cat_todos", on_change=toggle_todos)
     cat_col1 = CATEGORIAS_PRODUTOS[0:3]
-    cat_checks = {}
     for cat in cat_col1:
-      cat_checks[cat] = st.checkbox(cat, key=f"cat_{cat}")
+      st.checkbox(cat, key=f"cat_{cat}")
 
   with col_f2:
-    st.write("")  # Espaçamento para alinhar visualmente com a coluna 1
-    # Restantes categorias na coluna 2
+    st.write("")  # Espaçamento para alinhamento visual
     cat_col2 = CATEGORIAS_PRODUTOS[3:6]
     for cat in cat_col2:
-      cat_checks[cat] = st.checkbox(cat, key=f"cat_{cat}")
+      st.checkbox(cat, key=f"cat_{cat}")
 
-  # Se o usuário marcar todas individualmente, marca o "Todos"
+  # Verifica se todas estão marcadas individualmente para ligar o "Todos"
   todas_marcadas = all(st.session_state[f"cat_{cat}"] for cat in CATEGORIAS_PRODUTOS)
   if todas_marcadas and not st.session_state["cat_todos"]:
     st.session_state["cat_todos"] = True
 
-  # --- CAMPO DE PESQUISA (Logo abaixo do filtro) ---
-  st.divider()
+  # --- CAMPO DE PESQUISA (Mesmo bloco visual, sem barra divisoria separadora) ---
   termo_pesquisa = st.text_input(
       "🔍 Pesquisar produto pelo nome...", ""
   ).strip().lower()
@@ -439,7 +427,6 @@ elif menu == "Produtos":
   if not dados["produtos_salvos"]:
     st.info("Nenhum produto salvo ainda.")
   else:
-    # Descobre quais categorias estão selecionadas
     categorias_selecionadas = [
         cat for cat in CATEGORIAS_PRODUTOS if st.session_state.get(f"cat_{cat}", True)
     ]

@@ -559,7 +559,7 @@ if menu == "Calculadora":
           f"- **Depreciação de Máquina (por peça):** R$"
           f" {det['custo_maquina_unit']:.2f}"
       )
-      # Correção da formatação da mão de obra sem blocos verdes indesejados
+      # Mão de obra formatada limpa (sem tags HTML/Markdown indesejadas)
       st.write(
           f"- **Mão de Obra:** {det.get('hh_tempo', 0)}h a R$ {det.get('hh_valor', 20):.2f}/h (R$ {det.get('custo_mo_unit', 0):.2f} unit.)"
       )
@@ -638,7 +638,7 @@ if menu == "Calculadora":
 
 
 # ==========================================
-# 2. PRODUTOS (Com filtro superior de status e categorias)
+# 2. PRODUTOS (Com alteração de status direta e restrição de edição se inativo)
 # ==========================================
 elif menu == "Produtos":
   col_tit, col_btn = st.columns([3, 1])
@@ -726,7 +726,6 @@ elif menu == "Produtos":
       prod_cat = p.get("categoria", "Utilitários & Ferramentas")
       prod_status = p.get("status", "Ativo")
 
-      # Valida filtro de status
       match_status = False
       if prod_status == "Ativo" and filtro_ativo:
         match_status = True
@@ -761,12 +760,24 @@ elif menu == "Produtos":
         sku_str = sku_prod if sku_prod else "N/A"
         preco_str = f"R$ {preco_mostrado:.2f}"
 
-        # Aplica estilo cinza se o produto for inativo
         if status_prod == "Inativo":
           st.markdown('<div class="produto-inativo-expander">', unsafe_allow_html=True)
 
         with st.expander(f"{titulo_str} - {sku_str} - {preco_str}"):
-          st.write(f"**Status:** {status_prod} | **Categoria:** {cat_prod} | **SKU:** {sku_prod if sku_prod else 'N/A'}")
+          # Seleção direta de status dentro dos detalhes para alterar sem precisar ir na calculadora
+          novo_status_escolhido = st.selectbox(
+              "Status do Produto", 
+              ["Ativo", "Inativo"], 
+              index=0 if status_prod == "Ativo" else 1, 
+              key=f"status_direto_{idx}"
+          )
+          
+          if novo_status_escolhido != status_prod:
+            dados["produtos_salvos"][idx]["status"] = novo_status_escolhido
+            salvar_dados(dados)
+            st.rerun()
+
+          st.write(f"**Categoria:** {cat_prod} | **SKU:** {sku_prod if sku_prod else 'N/A'}")
           st.write(f"**Preço Final Definido (Unit.):** R$ {preco_mostrado:.2f}")
           st.write(
               f"**Margem de Lucro Real:** {prod.get('lucro_real_pct', 0.0):.1f}%"
@@ -799,12 +810,15 @@ elif menu == "Produtos":
             st.write("**Materiais Extras / Embalagens:** Nenhum extra selecionado.")
 
           st.write("")
-          # Botão de editar mantido, botão de excluir removido conforme solicitado
-          if st.button("✏️ Editar Produto", key=f"edit_prod_{idx}"):
-            st.session_state["editando_produto_idx"] = idx
-            if "filamentos_lista_calc" in st.session_state:
-              del st.session_state["filamentos_lista_calc"]
-            st.rerun()
+          # Botão de editar aparece APENAS se o produto estiver Ativo
+          if status_prod == "Ativo":
+            if st.button("✏️ Editar Produto", key=f"edit_prod_{idx}"):
+              st.session_state["editando_produto_idx"] = idx
+              if "filamentos_lista_calc" in st.session_state:
+                del st.session_state["filamentos_lista_calc"]
+              st.rerun()
+          else:
+            st.info("ℹ️ Produto inativo (modo histórico). Mude o status acima para Ativo caso deseje editá-lo.")
 
         if status_prod == "Inativo":
           st.markdown('</div>', unsafe_allow_html=True)

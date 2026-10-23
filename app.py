@@ -125,7 +125,6 @@ def carregar_dados():
         dados["filamentos"] = fils_convertidos
         return dados
     except (json.JSONDecodeError, Exception):
-      # Se o arquivo estiver corrompido, retorna o padrão para o app não quebrar
       return dados_padrao
 
   return dados_padrao
@@ -362,7 +361,38 @@ if menu == "Calculadora":
 
     st.divider()
 
-    st.subheader("4. Margens e Taxas")
+    # --- 4. MÃO DE OBRA ---
+    st.subheader("4. Mão de Obra")
+    
+    hh_valor_default = 20.0
+    hh_tempo_default = 0.0
+    if prod_em_edicao:
+      hh_valor_default = float(prod_em_edicao["detalhes"].get("hh_valor", 20.0))
+      hh_tempo_default = float(prod_em_edicao["detalhes"].get("hh_tempo", 0.0))
+
+    col_mo1, col_mo2 = st.columns(2)
+    with col_mo1:
+      valor_hh = st.number_input(
+          "Valor de HH (R$/h)",
+          min_value=0.0,
+          value=hh_valor_default,
+          format="%.2f",
+          key="input_valor_hh"
+      )
+    with col_mo2:
+      tempo_hh = st.number_input(
+          "Tempo de HH (h) [Acabamento / Trabalho Adicional]",
+          min_value=0.0,
+          value=hh_tempo_default,
+          step=0.25,
+          format="%.2f",
+          key="input_tempo_hh"
+      )
+
+    st.divider()
+
+    # --- 5. MARGENS E TAXAS ---
+    st.subheader("5. Margens e Taxas")
     kw_h_atual = dados["kw_h"]
 
     col_m1, col_m2 = st.columns(2)
@@ -407,11 +437,16 @@ if menu == "Calculadora":
           item["preco_unit"] * item["qtd"] for item in materiais_escolhidos
       )
 
+      # Custo total de Mão de Obra por lote dividido pelo lote para unitário
+      custo_mo_total = valor_hh * tempo_hh
+      custo_mo_unit = custo_mo_total / qtd_pecas_mesa
+
       custo_producao = (
           custo_material_unit
           + custo_energia_unit
           + custo_maquina_unit
           + custo_extras_unit
+          + custo_mo_unit
       )
 
       subtotal_com_lucro = custo_producao * (1 + lucro_desejado_dec)
@@ -442,6 +477,9 @@ if menu == "Calculadora":
               "custo_energia_unit": custo_energia_unit,
               "custo_maquina_unit": custo_maquina_unit,
               "extras": materiais_escolhidos,
+              "hh_valor": valor_hh,
+              "hh_tempo": tempo_hh,
+              "custo_mo_unit": custo_mo_unit,
           },
       }
 
@@ -514,6 +552,10 @@ if menu == "Calculadora":
           f"- **Depreciação de Máquina (por peça):** R$"
           f" {det['custo_maquina_unit']:.2f}"
       )
+      st.write(
+          f"- **Mão de Obra ({det.get('hh_tempo', 0)}h a R$ {det.get('hh_valor', 20):.2f}/h):** R$"
+          f" {det.get('custo_mo_unit', 0):.2f}"
+      )
       for ext in det["extras"]:
         st.write(
             f"- **{ext['nome']} ({ext['qtd']}x por peça):** R$"
@@ -583,7 +625,7 @@ if menu == "Calculadora":
 
 
 # ==========================================
-# 2. PRODUTOS
+# 2. PRODUTOS (Sem emojis/ícones e no formato Título - SKU - Preço)
 # ==========================================
 elif menu == "Produtos":
   col_tit, col_btn = st.columns([3, 1])
@@ -682,11 +724,13 @@ elif menu == "Produtos":
         preco_mostrado = prod.get("preco_definido", prod.get("preco_venda", 0.0))
         cat_prod = prod.get("categoria", "Utilitários & Ferramentas")
         sku_prod = prod.get("sku", "")
-        sku_str = f" [SKU: {sku_prod}]" if sku_prod else ""
 
-        with st.expander(
-            f"{prod['titulo']}   {sku_str} — **R$ {preco_mostrado:.2f} (Unit.)**"
-        ):
+        # Formato solicitado: Título - SKU - Preço (Sem emojis/ícones)
+        titulo_str = prod["titulo"]
+        sku_str = sku_prod if sku_prod else "N/A"
+        preco_str = f"R$ {preco_mostrado:.2f}"
+
+        with st.expander(f"{titulo_str} - {sku_str} - {preco_str}"):
           st.write(f"**Categoria:** {cat_prod} | **SKU:** {sku_prod if sku_prod else 'N/A'}")
           st.write(f"**Preço Final Definido (Unit.):** R$ {preco_mostrado:.2f}")
           st.write(
@@ -706,6 +750,9 @@ elif menu == "Produtos":
           st.write(
               f"**Impressora:** {det_prod['impressora']} | **Lote na Mesa:**"
               f" {det_prod.get('qtd_pecas_mesa', 1)} un | **Tempo:** {tempo_str}"
+          )
+          st.write(
+              f"**Mão de Obra:** {det_prod.get('hh_tempo', 0)}h a R$ {det_prod.get('hh_valor', 20):.2f}/h (R$ {det_prod.get('custo_mo_unit', 0):.2f} unit.)"
           )
           
           extras_lista = det_prod.get("extras", [])

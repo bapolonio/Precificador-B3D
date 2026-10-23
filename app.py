@@ -68,6 +68,12 @@ def salvar_dados(dados):
 # Inicializa os dados
 dados = carregar_dados()
 
+# Inicializa o session_state para comissão e lucro se não existirem
+if "val_comissao" not in st.session_state:
+  st.session_state["val_comissao"] = 12.0
+if "val_lucro" not in st.session_state:
+  st.session_state["val_lucro"] = 100.0
+
 # --- MENU LATERAL (Links Fixos) ---
 st.sidebar.title("🖨️ B3D - Painel")
 menu_opcoes = [
@@ -146,56 +152,74 @@ if menu == "🧮 Calculadora (Início)":
       st.subheader("4. Margens e Taxas")
       kw_h_atual = dados["kw_h"]
 
-      # Campo numérico + Slider sincronizados para Comissão
+
+      # Funções de callback para sincronizar input e slider perfeitamente
+      def atualiza_comissao_num():
+        st.session_state["val_comissao"] = st.session_state["com_num"]
+
+
+      def atualiza_comissao_slider():
+        st.session_state["val_comissao"] = st.session_state["com_slider"]
+
+
+      def atualiza_lucro_num():
+        st.session_state["val_lucro"] = st.session_state["luc_num"]
+
+
+      def atualiza_lucro_slider():
+        st.session_state["val_lucro"] = st.session_state["luc_slider"]
+
+
+      # Sincronização da Comissão
       col_com1, col_com2 = st.columns([1, 2])
       with col_com1:
-        comissao_num = st.number_input(
+        st.number_input(
             "Comissão (%)",
             min_value=0.0,
             max_value=50.0,
-            value=12.0,
+            value=st.session_state["val_comissao"],
             format="%.1f",
             key="com_num",
+            on_change=atualiza_comissao_num,
         )
       with col_com2:
-        comissao_slider = st.slider(
+        st.slider(
             "Ajustar Comissão",
             0.0,
             50.0,
-            comissao_num,
+            value=st.session_state["val_comissao"],
             format="%.1f%%",
             key="com_slider",
+            on_change=atualiza_comissao_slider,
             label_visibility="collapsed",
         )
-      taxa_comissao = (
-          comissao_slider if comissao_slider != comissao_num else comissao_num
-      )
+      taxa_comissao = st.session_state["val_comissao"]
       taxa_comissao_dec = taxa_comissao / 100.0
 
-      # Campo numérico + Slider sincronizados para Lucro
+      # Sincronização do Lucro
       col_luc1, col_luc2 = st.columns([1, 2])
       with col_luc1:
-        lucro_num = st.number_input(
+        st.number_input(
             "Lucro (%)",
             min_value=0.0,
             max_value=500.0,
-            value=100.0,
+            value=st.session_state["val_lucro"],
             format="%.1f",
             key="luc_num",
+            on_change=atualiza_lucro_num,
         )
       with col_luc2:
-        lucro_slider = st.slider(
+        st.slider(
             "Ajustar Lucro",
             0.0,
             500.0,
-            lucro_num,
+            value=st.session_state["val_lucro"],
             format="%.1f%%",
             key="luc_slider",
+            on_change=atualiza_lucro_slider,
             label_visibility="collapsed",
         )
-      lucro_desejado = (
-          lucro_slider if lucro_slider != lucro_num else lucro_num
-      )
+      lucro_desejado = st.session_state["val_lucro"]
       lucro_desejado_dec = lucro_desejado / 100.0
 
     # --- BOTÃO DE CALCULAR ---

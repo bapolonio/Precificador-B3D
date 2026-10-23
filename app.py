@@ -5,15 +5,16 @@ import streamlit as st
 # Configuração da página e layout
 st.set_page_config(page_title="Precificador B3D", page_icon="🖨️", layout="wide")
 
-# --- ESTILIZAÇÃO CSS (Cor Primária Verde #B2DE55 sem fundos indesejados) ---
+# --- ESTILIZAÇÃO CSS (Cor Primária Verde #B2DE55 e Estilo do Botão) ---
 st.markdown(
     """
     <style>
-    /* Botões primários com a cor #B2DE55 */
+    /* Botões primários com a cor #B2DE55, fonte maior e em negrito */
     .stButton > button {
         background-color: #B2DE55 !important;
         color: #1E1E1E !important;
-        font-weight: bold;
+        font-weight: 700 !important;
+        font-size: 18px !important;
         border: none;
     }
     .stButton > button:hover {
@@ -189,9 +190,7 @@ if menu == "🧮 Calculadora (Início)":
       lucro_desejado_dec = lucro_desejado / 100.0
 
     # --- BOTÃO DE CALCULAR ---
-    if st.button(
-        "🚀 Calcular Preço", type="primary", use_container_width=True
-    ):
+    if st.button("Calcular Preço", type="primary", use_container_width=True):
       custo_material = (preco_kg_atual / 1000) * peso_g
       consumo_kwh = (consumo_atual / 1000) * tempo_h
       custo_energia = consumo_kwh * kw_h_atual

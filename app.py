@@ -29,7 +29,6 @@ st.markdown(
         color: #1E1E1E !important;
     }
     
-    /* Estilo personalizado para botões secundários (Sem fundo verde) */
     div.row-widget.stButton > button[kind="secondary"] {
         background-color: #1E1E2f !important;
         color: #FFFFFF !important;
@@ -52,20 +51,18 @@ st.markdown(
         padding-bottom: 6px !important;
     }
 
-    /* Alterando a cor padrão de seleção de vermelho para verde (#2BDE55) em checkboxes e radios */
+    /* Alterando a cor padrão de seleção para verde (#2BDE55) em checkboxes e radios */
     input[type="checkbox"]:checked {
         background-color: #2BDE55 !important;
         border-color: #2BDE55 !important;
     }
     
-    /* Forçar cor verde em componentes de seleção do Streamlit */
     div[data-baseweb="checkbox"] div[aria-checked="true"],
     div[data-baseweb="radio"] div[aria-checked="true"] div {
         background-color: #2BDE55 !important;
         border-color: #2BDE55 !important;
     }
     
-    /* Ajuste para garantir a cor verde nos inputs checados do Streamlit */
     .stCheckbox [data-baseweb="checkbox"] [hidden]:checked + div,
     .stRadio [data-baseweb="radio"] input:checked + div {
         background-color: #2BDE55 !important;
@@ -96,6 +93,8 @@ def carregar_dados():
       for p in dados.get("produtos_salvos", []):
         if "categoria" not in p:
           p["categoria"] = "Utilitários & Ferramentas"
+        if "sku" not in p:
+          p["sku"] = ""
 
       fils_convertidos = {}
       for k, v in dados.get("filamentos", {}).items():
@@ -443,10 +442,17 @@ if menu == "Calculadora":
 
     st.divider()
     st.subheader("💾 Salvar Produto")
-    nome_produto = st.text_input("Título / Nome do Produto")
-    categoria_escolhida = st.selectbox(
-        "Categoria do Produto", CATEGORIAS_PRODUTOS, key="select_cat_salvar"
-    )
+    
+    # Campos Título, SKU e Categoria na mesma linha
+    col_salv1, col_salv2, col_salv3 = st.columns([3, 2, 2])
+    with col_salv1:
+      nome_produto = st.text_input("Título:")
+    with col_salv2:
+      sku_produto = st.text_input("SKU:")
+    with col_salv3:
+      categoria_escolhida = st.selectbox(
+          "Categoria:", CATEGORIAS_PRODUTOS, key="select_cat_salvar"
+      )
 
     if st.button("Salvar", key="btn_salvar_prod"):
       if nome_produto.strip() == "":
@@ -454,6 +460,7 @@ if menu == "Calculadora":
       else:
         novo_prod = {
             "titulo": nome_produto,
+            "sku": sku_produto,
             "categoria": categoria_escolhida,
             "preco_definido": preco_definido,
             "lucro_real_pct": lucro_real_pct,
@@ -469,7 +476,7 @@ if menu == "Calculadora":
 
 
 # ==========================================
-# 2. PRODUTOS (Com 4 colunas de categorias compactas)
+# 2. PRODUTOS
 # ==========================================
 elif menu == "Produtos":
   col_tit, col_btn = st.columns([3, 1])
@@ -503,7 +510,6 @@ elif menu == "Produtos":
       st.session_state[f"cat_{cat}"] = estado_atual
 
 
-  # Dividindo as categorias em 4 colunas compactas
   col_f1, col_f2, col_f3, col_f4 = st.columns(4)
 
   with col_f1:
@@ -532,7 +538,7 @@ elif menu == "Produtos":
     st.session_state["cat_todos"] = True
 
   termo_pesquisa = st.text_input(
-      "🔍 Pesquisar produto pelo nome...", ""
+      "🔍 Pesquisar produto pelo nome ou SKU...", ""
   ).strip().lower()
 
   st.divider()
@@ -549,7 +555,9 @@ elif menu == "Produtos":
       prod_cat = p.get("categoria", "Utilitários & Ferramentas")
       match_cat = prod_cat in categorias_selecionadas
       match_pesquisa = (
-          not termo_pesquisa or termo_pesquisa in p["titulo"].lower()
+          not termo_pesquisa 
+          or termo_pesquisa in p["titulo"].lower() 
+          or termo_pesquisa in p.get("sku", "").lower()
       )
       if match_cat and match_pesquisa:
         produtos_filtrados.append(p)
@@ -566,11 +574,13 @@ elif menu == "Produtos":
 
         preco_mostrado = prod.get("preco_definido", prod.get("preco_venda", 0.0))
         cat_prod = prod.get("categoria", "Utilitários & Ferramentas")
+        sku_prod = prod.get("sku", "")
+        sku_str = f" [SKU: {sku_prod}]" if sku_prod else ""
 
         with st.expander(
-            f"📌 [{cat_prod}] {prod['titulo']} — **R$ {preco_mostrado:.2f} (Unit.)**"
+            f"📌 [{cat_prod}] {prod['titulo']}{sku_str} — **R$ {preco_mostrado:.2f} (Unit.)**"
         ):
-          st.write(f"**Categoria:** {cat_prod}")
+          st.write(f"**Categoria:** {cat_prod} | **SKU:** {sku_prod if sku_prod else 'N/A'}")
           st.write(f"**Preço Final Definido (Unit.):** R$ {preco_mostrado:.2f}")
           st.write(
               f"**Margem de Lucro Real:** {prod.get('lucro_real_pct', 0.0):.1f}%"
@@ -740,7 +750,7 @@ elif menu == "Impressoras":
 
 
 # ==========================================
-# 5. ENERGIA (Botão de Salvar padrão)
+# 5. ENERGIA
 # ==========================================
 elif menu == "Energia":
   st.title("⚡ Custo de Energia Elétrica")
@@ -761,7 +771,7 @@ elif menu == "Energia":
 
 
 # ==========================================
-# 6. EMBALAGENS E MATERIAIS (Layout atualizado igual à referência)
+# 6. EMBALAGENS E MATERIAIS
 # ==========================================
 elif menu == "Embalagens e Materiais":
   st.title("🎁 Embalagens e Materiais Adicionais")

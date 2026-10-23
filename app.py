@@ -72,10 +72,10 @@ def carregar_dados():
 
   return {
       "filamentos": {
-          "PLA Padrão": {"marca": "Voolt3D", "preco": 85.0},
-          "PETG": {"marca": "Voolt3D", "preco": 90.0},
-          "ABS": {"marca": "3D Lab", "preco": 95.0},
-          "Velvet": {"marca": "Voolt3D", "preco": 110.0},
+          "PLA Padrão": {"marca": "Genérica", "preco": 85.0},
+          "PETG": {"marca": "Genérica", "preco": 90.0},
+          "ABS": {"marca": "Genérica", "preco": 95.0},
+          "Velvet": {"marca": "Genérica", "preco": 110.0},
       },
       "impressoras": {
           "Bambu Lab A1": {"depreciacao": 0.80, "consumo": 150.0},
@@ -552,7 +552,7 @@ elif menu == "Produtos":
 
 
 # ==========================================
-# 3. FILAMENTOS
+# 3. FILAMENTOS (Layout atualizado com ícones)
 # ==========================================
 elif menu == "Filamentos":
   st.title("🧵 Filamentos")
@@ -560,13 +560,14 @@ elif menu == "Filamentos":
   if "editando_fil" not in st.session_state:
     st.session_state["editando_fil"] = None
 
+  # Campos de cadastro lado a lado (Marca / Nome / Preço)
   with st.form("form_filamento"):
     edit_key = st.session_state["editando_fil"]
     val_nome = edit_key if edit_key else ""
     val_marca = (
         dados["filamentos"][edit_key]["marca"]
         if edit_key and edit_key in dados["filamentos"]
-        else ""
+        else "Genérica"
     )
     val_preco = (
         dados["filamentos"][edit_key]["preco"]
@@ -574,11 +575,17 @@ elif menu == "Filamentos":
         else 85.0
     )
 
-    marca_input = st.text_input("Marca do Filamento", value=val_marca)
-    nome_input = st.text_input("Nome do Filamento", value=val_nome)
-    preco_input = st.number_input(
-        "Preço do Quilo (R$)", min_value=0.0, value=float(val_preco)
-    )
+    col_f_in1, col_f_in2, col_f_in3 = st.columns([2, 2, 2])
+    with col_f_in1:
+      marca_input = st.text_input("Marca:", value=val_marca)
+    with col_f_in2:
+      nome_input = st.text_input("Nome:", value=val_nome)
+    with col_f_in3:
+      preco_input = st.number_input(
+          "Preço/Kg:", min_value=0.0, value=float(val_preco)
+      )
+
+    st.write("")
     btn_txt = "Atualizar" if edit_key else "Salvar"
     submit_fil = st.form_submit_button(btn_txt)
 
@@ -598,19 +605,23 @@ elif menu == "Filamentos":
         st.error("Preencha a Marca e o Nome do filamento.")
 
   st.divider()
-  st.subheader("📋 Filamentos Cadastrados:")
+
   if dados["filamentos"]:
     for fil, info in list(dados["filamentos"].items()):
-      c1, c2, c3, c4 = st.columns([3, 2, 1, 1])
-      c1.write(f"**{info['marca']} - {fil}**")
-      c2.write(f"R$ {info['preco']:.2f} / kg")
-      if c3.button("Editar", key=f"edit_fil_{fil}"):
-        st.session_state["editando_fil"] = fil
-        st.rerun()
-      if c4.button("Excluir", key=f"del_fil_{fil}"):
-        del dados["filamentos"][fil]
-        salvar_dados(dados)
-        st.rerun()
+      col_l1, col_l2, col_l3, col_l4 = st.columns([3, 2, 0.5, 0.5])
+      with col_l1:
+        st.write(f"**{info['marca']} - {fil}**")
+      with col_l2:
+        st.write(f"R$ {info['preco']:.2f} / kg")
+      with col_l3:
+        if st.button("✏️", key=f"edit_fil_{fil}", help="Editar filamento"):
+          st.session_state["editando_fil"] = fil
+          st.rerun()
+      with col_l4:
+        if st.button("🗑️", key=f"del_fil_{fil}", help="Excluir filamento"):
+          del dados["filamentos"][fil]
+          salvar_dados(dados)
+          st.rerun()
   else:
     st.info("Nenhum filamento cadastrado.")
 
@@ -662,10 +673,10 @@ elif menu == "Impressoras":
       ci1, ci2, ci3, ci4 = st.columns([3, 3, 1, 1])
       ci1.write(f"**{imp}**")
       ci2.write(f"Dep: R${info['depreciacao']:.2f}/h | {info['consumo']}W")
-      if ci3.button("Editar", key=f"edit_imp_{imp}"):
+      if ci3.button("✏️", key=f"edit_imp_{imp}", help="Editar"):
         st.session_state["editando_imp"] = imp
         st.rerun()
-      if ci4.button("Excluir", key=f"del_imp_{imp}"):
+      if ci4.button("🗑️", key=f"del_imp_{imp}", help="Excluir"):
         del dados["impressoras"][imp]
         salvar_dados(dados)
         st.rerun()
@@ -730,10 +741,10 @@ elif menu == "Embalagens e Materiais":
       ce1, ce2, ce3, ce4 = st.columns([3, 2, 1, 1])
       ce1.write(f"**{emb}**")
       ce2.write(f"R$ {preco:.2f} un")
-      if ce3.button("Editar", key=f"edit_emb_{emb}"):
+      if ce3.button("✏️", key=f"edit_emb_{emb}", help="Editar"):
         st.session_state["editando_emb"] = emb
         st.rerun()
-      if ce4.button("Excluir", key=f"del_emb_{emb}"):
+      if ce4.button("🗑️", key=f"del_emb_{emb}", help="Excluir"):
         del dados["embalagens"][emb]
         salvar_dados(dados)
         st.rerun()

@@ -166,7 +166,6 @@ if menu == "Calculadora":
       st.write("---")
       st.write("**Quantidade total de filamento na mesa:**")
 
-      # Gerenciamento dinâmico de múltiplos filamentos na calculadora
       if "filamentos_lista_calc" not in st.session_state:
         st.session_state["filamentos_lista_calc"] = [{"id": 0}]
         st.session_state["calc_contador_id"] = 1
@@ -179,38 +178,38 @@ if menu == "Calculadora":
 
       filamentos_escolhidos_calc = []
 
-      # Renderiza cada linha de filamento dinamicamente lado a lado
       for idx, item in enumerate(st.session_state["filamentos_lista_calc"]):
         item_id = item["id"]
-        st.markdown(f"**Filamento #{idx+1}**")
 
-        col_f_sel, col_f_qtd, col_f_del = st.columns([3, 2, 0.8])
+        # Linha unificada: Coluna da Esquerda (Select + Rótulo) | Coluna da Direita (Qtd + Lixeira)
+        col_f_esq, col_f_dir = st.columns([3, 2.6])
 
-        with col_f_sel:
+        with col_f_esq:
           fil_formatado_escolhido = st.selectbox(
               f"Filamento #{idx+1}",
               lista_formatada,
               key=f"calc_fil_{item_id}",
-              label_visibility="collapsed",
           )
         
         nome_real_fil = mapa_fil_formatado[fil_formatado_escolhido]
         preco_kg_fil = dados["filamentos"][nome_real_fil]["preco"]
 
-        with col_f_qtd:
-          gramas_fil = st.number_input(
-              f"Quantidade (g) #{idx+1}",
-              min_value=0.0,
-              value=50.0 if idx == 0 else 0.0,
-              key=f"calc_gramas_{item_id}",
-          )
-
-        with col_f_del:
-          st.write("") # Pequeno ajuste vertical
-          if len(st.session_state["filamentos_lista_calc"]) > 1:
-            if st.button("🗑️", key=f"del_linha_{item_id}", help="Remover este filamento"):
-              st.session_state["filamentos_lista_calc"].pop(idx)
-              st.rerun()
+        with col_f_dir:
+          sub_col_qtd, sub_col_del = st.columns([3.2, 1])
+          with sub_col_qtd:
+            gramas_fil = st.number_input(
+                f"Quantidade (g)",
+                min_value=0.0,
+                value=50.0 if idx == 0 else 0.0,
+                key=f"calc_gramas_{item_id}",
+            )
+          with sub_col_del:
+            st.write("") # Alinhamento vertical com o input
+            st.write("")
+            if len(st.session_state["filamentos_lista_calc"]) > 1:
+              if st.button("🗑️", key=f"del_linha_{item_id}", help="Remover"):
+                st.session_state["filamentos_lista_calc"].pop(idx)
+                st.rerun()
 
         filamentos_escolhidos_calc.append({
             "nome": nome_real_fil,

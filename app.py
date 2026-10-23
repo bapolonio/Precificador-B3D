@@ -28,6 +28,22 @@ st.markdown(
         background-color: #9ec944 !important;
         color: #1E1E1E !important;
     }
+    
+    /* Estilo personalizado para botões secundários (Sem fundo verde) */
+    div.row-widget.stButton > button[kind="secondary"] {
+        background-color: #1E1E2f !important;
+        color: #FFFFFF !important;
+        border: 1px solid #4A4A5A !important;
+        font-size: 16px !important;
+        font-weight: 600 !important;
+        border-radius: 8px !important;
+    }
+    div.row-widget.stButton > button[kind="secondary"]:hover {
+        background-color: #2a2a3f !important;
+        border-color: #6a6a7a !important;
+        color: #FFFFFF !important;
+    }
+
     div.stRadio > div {
         gap: 12px !important;
     }
@@ -214,7 +230,7 @@ if menu == "Calculadora":
           "gramas": gramas_fil,
       })
 
-    if st.button("➕ Adicionar Filamento"):
+    if st.button("Adicionar Filamento", type="secondary"):
       novo_id = st.session_state["calc_contador_id"]
       st.session_state["filamentos_lista_calc"].append({"id": novo_id})
       st.session_state["calc_contador_id"] += 1
@@ -552,7 +568,7 @@ elif menu == "Produtos":
 
 
 # ==========================================
-# 3. FILAMENTOS (Layout atualizado com ícones)
+# 3. FILAMENTOS
 # ==========================================
 elif menu == "Filamentos":
   st.title("🧵 Filamentos")
@@ -560,7 +576,6 @@ elif menu == "Filamentos":
   if "editando_fil" not in st.session_state:
     st.session_state["editando_fil"] = None
 
-  # Campos de cadastro lado a lado (Marca / Nome / Preço)
   with st.form("form_filamento"):
     edit_key = st.session_state["editando_fil"]
     val_nome = edit_key if edit_key else ""
@@ -627,7 +642,7 @@ elif menu == "Filamentos":
 
 
 # ==========================================
-# 4. IMPRESSORAS
+# 4. IMPRESSORAS (Layout atualizado igual à referência)
 # ==========================================
 elif menu == "Impressoras":
   st.title("🖨️ Impressoras")
@@ -643,12 +658,18 @@ elif menu == "Impressoras":
     )
     val_cons = dados["impressoras"][edit_imp]["consumo"] if edit_imp else 150.0
 
-    nome_imp_in = st.text_input("Nome da Impressora", value=val_nome_imp)
-    dep_in = st.number_input(
-        "Depreciação (R$/h)", min_value=0.0, value=float(val_dep), format="%.2f"
-    )
-    cons_in = st.number_input("Consumo (Watts)", min_value=0.0, value=val_cons)
-    btn_imp_txt = "Atualizar" if edit_imp else "Cadastrar"
+    col_imp_in1, col_imp_in2, col_imp_in3 = st.columns([2, 2, 2])
+    with col_imp_in1:
+      nome_imp_in = st.text_input("Nome:", value=val_nome_imp)
+    with col_imp_in2:
+      dep_in = st.number_input(
+          "Depreciação R$/h:", min_value=0.0, value=float(val_dep), format="%.2f"
+      )
+    with col_imp_in3:
+      cons_in = st.number_input("Consumo (W):", min_value=0.0, value=val_cons)
+
+    st.write("")
+    btn_imp_txt = "Atualizar" if edit_imp else "Salvar"
     submit_imp = st.form_submit_button(btn_imp_txt)
 
     if submit_imp:
@@ -667,19 +688,23 @@ elif menu == "Impressoras":
         st.error("O nome não pode estar em branco.")
 
   st.divider()
-  st.subheader("📋 Impressoras Cadastradas:")
+
   if dados["impressoras"]:
     for imp, info in list(dados["impressoras"].items()):
-      ci1, ci2, ci3, ci4 = st.columns([3, 3, 1, 1])
-      ci1.write(f"**{imp}**")
-      ci2.write(f"Dep: R${info['depreciacao']:.2f}/h | {info['consumo']}W")
-      if ci3.button("✏️", key=f"edit_imp_{imp}", help="Editar"):
-        st.session_state["editando_imp"] = imp
-        st.rerun()
-      if ci4.button("🗑️", key=f"del_imp_{imp}", help="Excluir"):
-        del dados["impressoras"][imp]
-        salvar_dados(dados)
-        st.rerun()
+      col_il1, col_il2, col_il3, col_il4 = st.columns([3, 2, 0.5, 0.5])
+      with col_il1:
+        st.write(f"**{imp}**")
+      with col_il2:
+        st.write(f"Dep: R${info['depreciacao']:.2f}/h | {info['consumo']}W")
+      with col_il3:
+        if st.button("✏️", key=f"edit_imp_{imp}", help="Editar"):
+          st.session_state["editando_imp"] = imp
+          st.rerun()
+      with col_il4:
+        if st.button("🗑️", key=f"del_imp_{imp}", help="Excluir"):
+          del dados["impressoras"][imp]
+          salvar_dados(dados)
+          st.rerun()
   else:
     st.info("Nenhuma impressora cadastrada.")
 

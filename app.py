@@ -76,14 +76,15 @@ st.markdown(
 # --- ARQUIVO DE BANCO DE DADOS LOCAL ---
 DB_FILE = "dados_b3d.json"
 
-CATEGORIAS_PRODUTOS = [
-    "Casa & Decoração",
-    "Organização & Setup",
-    "Colecionáveis & Figures",
-    "Jogos & Entretenimento",
-    "Utilitários & Ferramentas",
-    "Brinquedos & Sensoriais",
-]
+CATEGORIAS_DICT = {
+    "Casa & Decoração": "HOM",
+    "Organização & Setup": "SET",
+    "Colecionáveis & Figures": "COL",
+    "Jogos & Entretenimento": "GAM",
+    "Utilitários & Ferramentas": "UTI",
+    "Brinquedos & Sensoriais": "TOY",
+}
+CATEGORIAS_PRODUTOS = list(CATEGORIAS_DICT.keys())
 
 
 def carregar_dados():
@@ -125,6 +126,26 @@ def carregar_dados():
 def salvar_dados(dados):
   with open(DB_FILE, "w", encoding="utf-8") as f:
     json.dump(dados, f, ensure_ascii=False, indent=4)
+
+
+def gerar_proximo_sku(categoria, produtos_salvos):
+  sigla = CATEGORIAS_DICT.get(categoria, "UTI")
+  prefixo = f"B3{sigla}"
+
+  maior_num = 0
+  for p in produtos_salvos:
+    sku_existente = p.get("sku", "")
+    if sku_existente.startswith(prefixo):
+      try:
+        num_str = sku_existente[len(prefixo):]
+        num = int(num_str)
+        if num > maior_num:
+          maior_num = num
+      except ValueError:
+        pass
+
+  proximo_num = maior_num + 1
+  return f"{prefixo}{proximo_num:04d}"
 
 
 dados = carregar_dados()
@@ -436,23 +457,24 @@ if menu == "Calculadora":
             f" {ext['preco_unit'] * ext['qtd']:.2f}"
         )
       st.write(
-          f"- **Comissão do Site ({calc['taxa_comissao_pct']}%):** R$"
-          f" {preco_definido * taxa_com_dec:.2f}"
+            f"- **Comissão do Site ({calc['taxa_comissao_pct']}%):** R$"
+            f" {preco_definido * taxa_com_dec:.2f}"
       )
 
     st.divider()
     st.subheader("💾 Salvar Produto")
     
-    # Campos Título, SKU e Categoria na mesma linha
+    # Ordem solicitada: Título, Categoria e SKU (automático)
     col_salv1, col_salv2, col_salv3 = st.columns([3, 2, 2])
     with col_salv1:
       nome_produto = st.text_input("Título:")
     with col_salv2:
-      sku_produto = st.text_input("SKU:")
-    with col_salv3:
       categoria_escolhida = st.selectbox(
           "Categoria:", CATEGORIAS_PRODUTOS, key="select_cat_salvar"
       )
+    with col_salv3:
+      sku_automatico = gerar_proximo_sku(categoria_escolhida, dados["produtos_salvos"])
+      sku_produto = st.text_input("SKU:", value=sku_automatico, disabled=True)
 
     if st.button("Salvar", key="btn_salvar_prod"):
       if nome_produto.strip() == "":
@@ -460,7 +482,7 @@ if menu == "Calculadora":
       else:
         novo_prod = {
             "titulo": nome_produto,
-            "sku": sku_produto,
+            "sku": sku_automatico,
             "categoria": categoria_escolhida,
             "preco_definido": preco_definido,
             "lucro_real_pct": lucro_real_pct,
@@ -472,7 +494,7 @@ if menu == "Calculadora":
         }
         dados["produtos_salvos"].append(novo_prod)
         salvar_dados(dados)
-        st.success("Produto salvo com sucesso!")
+        st.success(f"Produto salvo com sucesso! SKU gerado: {sku_automatico}")
 
 
 # ==========================================

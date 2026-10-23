@@ -5,17 +5,14 @@ import streamlit as st
 # Configuração da página e layout
 st.set_page_config(page_title="Precificador B3D", page_icon="🖨️", layout="wide")
 
-# --- ESTILIZAÇÃO CSS (Remove o espaço morto do topo, cor #B2DE55 e espaçamentos) ---
+# --- ESTILIZAÇÃO CSS (Remove espaço do topo, botões e ajustes visuais) ---
 st.markdown(
     """
     <style>
-    /* Remove o espaço em branco excessivo no topo da página */
     .block-container {
         padding-top: 1.5rem !important;
         padding-bottom: 2rem !important;
     }
-    
-    /* Força o texto do botão principal a ficar grande, negrito e escuro */
     div.stButton > button {
         background-color: #B2DE55 !important;
         color: #1E1E1E !important;
@@ -28,7 +25,6 @@ st.markdown(
         background-color: #9ec944 !important;
         color: #1E1E1E !important;
     }
-    /* Aumenta o espaçamento entre os itens do rádio no menu lateral */
     div.stRadio > div {
         gap: 12px !important;
     }
@@ -88,7 +84,7 @@ def salvar_dados(dados):
 # Inicializa os dados
 dados = carregar_dados()
 
-# --- MENU LATERAL (Logo, Título Menu e Produtos no final) ---
+# --- MENU LATERAL ---
 if os.path.exists("logo.png"):
   st.sidebar.image("logo.png", use_container_width=True)
 
@@ -117,7 +113,7 @@ if menu == "Produtos":
 # 1. PÁGINA INICIAL: CALCULADORA DE PRECIFICAÇÃO
 # ==========================================
 if menu == "Calculadora":
-  st.title("🧮 Calculadora de Precificação - B3D")
+  st.title("🖨️ Calculadora de Precificação - B3D")
   st.write("Preencha os dados da peça para calcular o preço de venda ideal.")
 
   if not dados["filamentos"] or not dados["impressoras"]:
@@ -272,7 +268,6 @@ if menu == "Calculadora":
           },
       }
 
-  # --- EXIBIÇÃO FORA DO BLOCO DE COLUNAS ---
   if "ultimo_calculo" in st.session_state:
     calc = st.session_state["ultimo_calculo"]
     st.divider()
@@ -375,52 +370,84 @@ if menu == "Calculadora":
 # 2. PRODUTOS SALVOS
 # ==========================================
 elif menu == "Produtos":
-  st.title("📦 Produtos Salvos")
-  st.write("Histórico de todos os produtos cadastrados.")
-
-  json_str = json.dumps(dados, ensure_ascii=False, indent=4)
-  st.download_button(
-      label="📥 Fazer Backup da Lista (Baixar JSON)",
-      data=json_str,
-      file_name="dados_b3d_backup.json",
-      mime="application/json",
-  )
+  # Cabeçalho com Título na Esquerda e Botão de Backup na Direita
+  col_tit, col_btn = st.columns([3, 1])
+  with col_tit:
+    st.title("📦 Produtos Salvos")
+  with col_btn:
+    st.write("")  # Pequeno ajuste vertical
+    json_str = json.dumps(dados, ensure_ascii=False, indent=4)
+    st.download_button(
+        label="📥 Fazer Backup (JSON)",
+        data=json_str,
+        file_name="dados_b3d_backup.json",
+        mime="application/json",
+        use_container_width=True,
+    )
 
   st.divider()
 
+  # --- FILTRO POR CATEGORIA (Caixas de seleção em 2 colunas) ---
+  st.write("**Filtrar por Categoria:**")
+
+  # Inicializa o estado das checkboxes se não existirem
+  if "cat_todos" not in st.session_state:
+    st.session_state["cat_todos"] = True
+    for cat in CATEGORIAS_PRODUTOS:
+      st.session_state[f"cat_{cat}"] = True
+
+
+  # Função chamada ao clicar em "Todos"
+  def toggle_todos():
+    estado_atual = st.session_state["cat_todos"]
+    for cat in CATEGORIAS_PRODUTOS:
+      st.session_state[f"cat_{cat}"] = estado_atual
+
+
+  col_f1, col_f2 = st.columns(2)
+
+  with col_f1:
+    todos_checkbox = st.checkbox(
+        "📋 Todos", key="cat_todos", on_change=toggle_todos
+    )
+    # Primeiras 3 categorias reais na coluna 1
+    cat_col1 = CATEGORIAS_PRODUTOS[0:3]
+    cat_checks = {}
+    for cat in cat_col1:
+      cat_checks[cat] = st.checkbox(cat, key=f"cat_{cat}")
+
+  with col_f2:
+    st.write("")  # Espaçamento para alinhar visualmente com a coluna 1
+    # Restantes categorias na coluna 2
+    cat_col2 = CATEGORIAS_PRODUTOS[3:6]
+    for cat in cat_col2:
+      cat_checks[cat] = st.checkbox(cat, key=f"cat_{cat}")
+
+  # Se o usuário marcar todas individualmente, marca o "Todos"
+  todas_marcadas = all(st.session_state[f"cat_{cat}"] for cat in CATEGORIAS_PRODUTOS)
+  if todas_marcadas and not st.session_state["cat_todos"]:
+    st.session_state["cat_todos"] = True
+
+  # --- CAMPO DE PESQUISA (Logo abaixo do filtro) ---
+  st.divider()
   termo_pesquisa = st.text_input(
       "🔍 Pesquisar produto pelo nome...", ""
   ).strip().lower()
 
-  st.write("**Filtrar por Categoria:**")
-  cols_cat = st.columns(len(CATEGORIAS_PRODUTOS) + 1)
-
-  if cols_cat[0].button("📋 Todos", use_container_width=True, key="fil_all"):
-    st.session_state["filtra_cat_pagina"] = "Todos"
-
-  for i, cat in enumerate(CATEGORIAS_PRODUTOS):
-    if cols_cat[i + 1].button(
-        cat, use_container_width=True, key=f"fil_cat_{i}"
-    ):
-      st.session_state["filtra_cat_pagina"] = cat
-
-  cat_ativa = st.session_state.get(
-      "filtra_cat_pagina", categoria_selecionada_filtro
-  )
-  if categoria_selecionada_filtro != "Todos":
-    cat_ativa = categoria_selecionada_filtro
-
-  st.info(f"📂 Exibindo categoria: **{cat_ativa}**")
   st.divider()
 
   if not dados["produtos_salvos"]:
     st.info("Nenhum produto salvo ainda.")
   else:
+    # Descobre quais categorias estão selecionadas
+    categorias_selecionadas = [
+        cat for cat in CATEGORIAS_PRODUTOS if st.session_state.get(f"cat_{cat}", True)
+    ]
+
     produtos_filtrados = []
     for p in dados["produtos_salvos"]:
-      match_cat = (cat_ativa == "Todos") or (
-          p.get("categoria", "Utilitários & Ferramentas") == cat_ativa
-      )
+      prod_cat = p.get("categoria", "Utilitários & Ferramentas")
+      match_cat = prod_cat in categorias_selecionadas
       match_pesquisa = (
           not termo_pesquisa or termo_pesquisa in p["titulo"].lower()
       )

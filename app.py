@@ -38,11 +38,26 @@ st.markdown(
 # --- ARQUIVO DE BANCO DE DADOS LOCAL ---
 DB_FILE = "dados_b3d.json"
 
+# Categorias oficiais de produtos
+CATEGORIAS_PRODUTOS = [
+    "Casa & Decoração",
+    "Organização & Setup",
+    "Colecionáveis & Figures",
+    "Jogos & Entretenimento",
+    "Utilitários & Ferramentas",
+    "Brinquedos & Sensoriais",
+]
+
 
 def carregar_dados():
   if os.path.exists(DB_FILE):
     with open(DB_FILE, "r", encoding="utf-8") as f:
-      return json.load(f)
+      dados = json.load(f)
+      # Garante compatibilidade caso produtos antigos não tenham categoria
+      for p in dados.get("produtos_salvos", []):
+        if "categoria" not in p:
+          p["categoria"] = "Utilitários & Ferramentas"
+      return dados
   return {
       "filamentos": {
           "PLA Padrão": 85.0,
@@ -68,20 +83,32 @@ def salvar_dados(dados):
 # Inicializa os dados
 dados = carregar_dados()
 
-# --- MENU LATERAL (Logo e Links Fixos) ---
+# --- MENU LATERAL (Logo, Título Menu e Produtos no final) ---
 if os.path.exists("logo.png"):
   st.sidebar.image("logo.png", use_container_width=True)
 
 st.sidebar.title("Menu")
+
+# Opções principais (Produtos movido para o final)
 menu_opcoes = [
     "Calculadora",
-    "Produtos",
     "Filamentos",
     "Impressoras",
     "Energia",
     "Embalagens e Materiais",
+    "Produtos",
 ]
-menu = st.sidebar.radio("Navegação", menu_opcoes)
+menu = st.sidebar.radio("MenuPrincipal", menu_opcoes, label_visibility="collapsed")
+
+# Submenu de Categorias exibido apenas quando "Produtos" está selecionado
+categoria_selecionada_filtro = "Todos"
+if menu == "Produtos":
+  st.sidebar.markdown("---")
+  st.sidebar.subheader("📂 Categorias")
+  opcoes_cat_filtro = ["Todos"] + CATEGORIAS_PRODUTOS
+  categoria_selecionada_filtro = st.sidebar.radio(
+      "FiltroCat", opcoes_cat_filtro, label_visibility="collapsed"
+  )
 
 # ==========================================
 # 1. PÁGINA INICIAL: CALCULADORA DE PRECIFICAÇÃO
@@ -120,7 +147,6 @@ if menu == "Calculadora":
 
       st.subheader("2. Parâmetros de Impressão")
 
-      # Campo para quantidade de unidades na mesa (Lote)
       qtd_pecas_mesa = st.number_input(
           "Unidades impressas de uma vez na mesa (Lote)",
           min_value=1,
@@ -132,7 +158,6 @@ if menu == "Calculadora":
           ),
       )
 
-      # Campos separados para Horas e Minutos
       col_h1, col_h2 = st.columns(2)
       with col_h1:
         horas_imp = st.number_input(
@@ -143,7 +168,6 @@ if menu == "Calculadora":
             "Minutos de Impressão", min_value=0, max_value=59, value=0, step=1
         )
 
-      # Conversão automática para decimal usada nos cálculos
       tempo_h = horas_imp + (minutos_imp / 60.0)
       if tempo_h <= 0:
         tempo_h = 0.01
@@ -199,23 +223,19 @@ if menu == "Calculadora":
 
     # --- BOTÃO DE CALCULAR ---
     if st.button("Calcular Preço", type="primary", use_container_width=True):
-      # Custos totais da fornada na mesa
       custo_material_total = (preco_kg_atual / 1000) * peso_g
       consumo_kwh = (consumo_atual / 1000) * tempo_h
       custo_energia_total = consumo_kwh * kw_h_atual
       custo_maquina_total = depreciacao_atual * tempo_h
 
-      # Divisão pelo número de peças na mesa (por unidade)
       custo_material_unit = custo_material_total / qtd_pecas_mesa
       custo_energia_unit = custo_energia_total / qtd_pecas_mesa
       custo_maquina_unit = custo_maquina_total / qtd_pecas_mesa
 
-      # Custos extras de embalagem/materiais (já são por unidade)
       custo_extras_unit = sum(
           item["preco_unit"] * item["qtd"] for item in materiais_escolhidos
       )
 
-      # Custo de produção final por unidade
       custo_producao = (
           custo_material_unit
           + custo_energia_unit
@@ -330,12 +350,18 @@ if menu == "Calculadora":
       st.divider()
       st.subheader("💾 Salvar Produto")
       nome_produto = st.text_input("Título / Nome do Produto para Salvar")
+      # Selectbox para escolha da categoria (sem digitação livre)
+      categoria_escolhida = st.selectbox(
+          "Categoria do Produto", CATEGORIAS_PRODUTOS
+      )
+
       if st.button("Salvar no Histórico de Produtos"):
         if nome_produto.strip() == "":
           st.error("Por favor, digite um título para o produto.")
         else:
           novo_prod = {
               "titulo": nome_produto,
+              "categoria": categoria_escolhida,
               "preco_definido": preco_definido,
               "lucro_real_pct": lucro_real_pct,
               "lucro_real_reais": lucro_real_reais,
@@ -346,7 +372,10 @@ if menu == "Calculadora":
           }
           dados["produtos_salvos"].append(novo_prod)
           salvar_dados(dados)
-          st.success(f"Produto '{nome_produto}' salvo com sucesso!")
+          st.success(
+              f"Produto '{nome_produto}' salvo na categoria"
+              f" '{categoria_escolhida}' com sucesso!"
+          )
 
 
 # ==========================================
@@ -354,8 +383,9 @@ if menu == "Calculadora":
 # ==========================================
 elif menu == "Produtos":
   st.title("📦 Produtos Salvos")
-  st.write("Histórico de todos os produtos salvos.")
+  st.write("Histórico de todos os produtos cadastrados.")
 
+  # Botão de Backup JSON
   json_str = json.dumps(dados, ensure_ascii=False, indent=4)
   st.download_button(
       label="📥 Fazer Backup da Lista (Baixar JSON)",
@@ -366,39 +396,88 @@ elif menu == "Produtos":
 
   st.divider()
 
+  # Campo de Pesquisa por nome do produto
+  termo_pesquisa = st.text_input(
+      "🔍 Pesquisar produto pelo nome...", ""
+  ).strip().lower()
+
+  # Filtro de categorias no topo da página (botões lado a lado)
+  st.write("**Filtrar por Categoria:**")
+  cols_cat = st.columns(len(CATEGORIAS_PRODUTOS) + 1)
+
+  if cols_cat[0].button("📋 Todos", use_container_width=True):
+    st.session_state["filtra_cat_pagina"] = "Todos"
+
+  for i, cat in enumerate(CATEGORIAS_PRODUTOS):
+    if cols_cat[i + 1].button(cat, use_container_width=True):
+      st.session_state["filtra_cat_pagina"] = cat
+
+  # Recupera categoria ativa (prioriza o menu lateral ou os botões superiores)
+  cat_ativa = st.session_state.get("filtra_cat_pagina", categoria_selecionada_filtro)
+  if categoria_selecionada_filtro != "Todos":
+    cat_ativa = categoria_selecionada_filtro
+
+  st.info(f"📂 Exibindo categoria: **{cat_ativa}**")
+  st.divider()
+
   if not dados["produtos_salvos"]:
     st.info("Nenhum produto salvo ainda.")
   else:
-    for idx, prod in enumerate(dados["produtos_salvos"]):
-      preco_mostrado = prod.get("preco_definido", prod.get("preco_venda", 0.0))
-      with st.expander(
-          f"📌 {prod['titulo']} — **R$ {preco_mostrado:.2f} (Unit.)**"
-      ):
-        st.write(f"**Preço Final Definido (Unit.):** R$ {preco_mostrado:.2f}")
-        st.write(
-            f"**Margem de Lucro Real:** {prod.get('lucro_real_pct', 0.0):.1f}%"
-            f" (R$ {prod.get('lucro_real_reais', 0.0):.2f} por peça)"
-        )
-        st.divider()
-        st.write(f"**Custo de Produção (Unit.):** R$ {prod['custo']:.2f}")
-        st.write(
-            f"**Preço Calculado Original (Unit.):** R$"
-            f" {prod.get('preco_calculado', 0.0):.2f} ({prod.get('lucro_calc_pct', 0.0):.0f}% de lucro)"
-        )
-        det_prod = prod["detalhes"]
-        tempo_str = det_prod.get(
-            "tempo_formatado", f"{det_prod['tempo_h']:.2f}h"
-        )
-        st.write(
-            f"**Impressora:** {det_prod['impressora']} | **Filamento:**"
-            f" {det_prod['filamento']} | **Lote na Mesa:**"
-            f" {det_prod.get('qtd_pecas_mesa', 1)} un | **Tempo:** {tempo_str}"
-        )
+    # Aplica filtros de categoria e pesquisa
+    produtos_filtrados = []
+    for p in dados["produtos_salvos"]:
+      match_cat = (cat_ativa == "Todos") or (
+          p.get("categoria", "Utilitários & Ferramentas") == cat_ativa
+      )
+      match_pesquisa = (
+          not termo_pesquisa or termo_pesquisa in p["titulo"].lower()
+      )
+      if match_cat and match_pesquisa:
+        produtos_filtrados.append(p)
 
-        if st.button(f"Excluir produto #{idx+1}", key=f"del_prod_{idx}"):
-          dados["produtos_salvos"].pop(idx)
-          salvar_dados(dados)
-          st.rerun()
+    if not produtos_filtrados:
+      st.warning(
+          "Nenhum produto encontrado com os filtros e termos de pesquisa"
+          " informados."
+      )
+    else:
+      for idx, prod in enumerate(dados["produtos_salvos"]):
+        # Filtra apenas para exibição
+        if prod not in produtos_filtrados:
+          continue
+
+        preco_mostrado = prod.get("preco_definido", prod.get("preco_venda", 0.0))
+        cat_prod = prod.get("categoria", "Utilitários & Ferramentas")
+
+        with st.expander(
+            f"📌 [{cat_prod}] {prod['titulo']} — **R$ {preco_mostrado:.2f} (Unit.)**"
+        ):
+          st.write(f"**Categoria:** {cat_prod}")
+          st.write(f"**Preço Final Definido (Unit.):** R$ {preco_mostrado:.2f}")
+          st.write(
+              f"**Margem de Lucro Real:** {prod.get('lucro_real_pct', 0.0):.1f}%"
+              f" (R$ {prod.get('lucro_real_reais', 0.0):.2f} por peça)"
+          )
+          st.divider()
+          st.write(f"**Custo de Produção (Unit.):** R$ {prod['custo']:.2f}")
+          st.write(
+              f"**Preço Calculado Original (Unit.):** R$"
+              f" {prod.get('preco_calculado', 0.0):.2f} ({prod.get('lucro_calc_pct', 0.0):.0f}% de lucro)"
+          )
+          det_prod = prod["detalhes"]
+          tempo_str = det_prod.get(
+              "tempo_formatado", f"{det_prod['tempo_h']:.2f}h"
+          )
+          st.write(
+              f"**Impressora:** {det_prod['impressora']} | **Filamento:**"
+              f" {det_prod['filamento']} | **Lote na Mesa:**"
+              f" {det_prod.get('qtd_pecas_mesa', 1)} un | **Tempo:** {tempo_str}"
+          )
+
+          if st.button(f"Excluir produto #{idx+1}", key=f"del_prod_{idx}"):
+            dados["produtos_salvos"].pop(idx)
+            salvar_dados(dados)
+            st.rerun()
 
 
 # ==========================================

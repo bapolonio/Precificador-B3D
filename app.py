@@ -43,13 +43,6 @@ st.markdown(
         color: #FFFFFF !important;
     }
 
-    /* Força específica para o botão de Editar Produto ficar com o padrão escuro */
-    button[key*="edit_prod"] {
-        background-color: #1E1E2f !important;
-        color: #FFFFFF !important;
-        border: 1px solid #4A4A5A !important;
-    }
-
     div.stRadio > div {
         gap: 12px !important;
     }
@@ -75,10 +68,10 @@ st.markdown(
         border-color: #2BDE55 !important;
     }
 
-    /* Estilo para deixar produtos inativos com fundo cinza */
+    /* Estilo para deixar produtos inativos com fundo vermelho bem claro e sutil */
     .produto-inativo-expander div[data-testid="stExpander"] {
-        background-color: #2b2b2b !important;
-        border-color: #444444 !important;
+        background-color: rgba(255, 82, 82, 0.12) !important;
+        border: 1px solid rgba(255, 82, 82, 0.3) !important;
     }
     </style>
 """,
@@ -768,6 +761,7 @@ elif menu == "Produtos":
         sku_str = sku_prod if sku_prod else "N/A"
         preco_str = f"R$ {preco_mostrado:.2f}"
 
+        # Aplica a classe CSS de fundo vermelho claro e sutil se o produto for inativo
         if status_prod == "Inativo":
           st.markdown('<div class="produto-inativo-expander">', unsafe_allow_html=True)
 
@@ -819,7 +813,6 @@ elif menu == "Produtos":
             st.write("**Materiais Extras / Embalagens:** Nenhum extra selecionado.")
 
           st.write("")
-          # Botão de editar com tipo secundário garantido por seletor CSS
           if status_prod == "Ativo":
             if st.button("✏️ Editar Produto", key=f"edit_prod_{idx}", type="secondary"):
               st.session_state["editando_produto_idx"] = idx

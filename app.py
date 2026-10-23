@@ -69,8 +69,6 @@ def salvar_dados(dados):
 dados = carregar_dados()
 
 # --- MENU LATERAL (Links Fixos) ---
-if os.path.exists("logo.png"):
-  st.sidebar.image("logo.png", use_container_width=True)
 st.sidebar.title("Menu")
 menu_opcoes = [
     "Calculadora",

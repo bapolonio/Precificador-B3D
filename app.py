@@ -5,11 +5,11 @@ import streamlit as st
 # Configuração da página e layout
 st.set_page_config(page_title="Precificador B3D", page_icon="🖨️", layout="wide")
 
-# --- ESTILIZAÇÃO CSS (Cor Primária Verde #B2DE55) ---
+# --- ESTILIZAÇÃO CSS (Cor Primária Verde #B2DE55 sem fundos indesejados) ---
 st.markdown(
     """
     <style>
-    /* Botões primários e seletores com a cor #B2DE55 */
+    /* Botões primários com a cor #B2DE55 */
     .stButton > button {
         background-color: #B2DE55 !important;
         color: #1E1E1E !important;
@@ -19,10 +19,6 @@ st.markdown(
     .stButton > button:hover {
         background-color: #9ec944 !important;
         color: #1E1E1E !important;
-    }
-    /* Sliders e elementos interativos */
-    .stSlider > div > div > div > div {
-        background-color: #B2DE55 !important;
     }
     </style>
 """,
@@ -161,7 +157,6 @@ if menu == "🧮 Calculadora (Início)":
             key="com_slider",
             label_visibility="collapsed",
         )
-      # Sincroniza se mexeu no slider
       taxa_comissao = (
           comissao_slider if comissao_slider != comissao_num else comissao_num
       )
@@ -311,7 +306,7 @@ elif menu == "📦 Produtos Salvos":
 
 
 # ==========================================
-# 3. FILAMENTOS (Com Edição e Exclusão)
+# 3. FILAMENTOS
 # ==========================================
 elif menu == "🧵 Filamentos":
   st.title("🧵 Gerenciamento de Filamentos")
@@ -364,7 +359,7 @@ elif menu == "🧵 Filamentos":
 
 
 # ==========================================
-# 4. IMPRESSORAS (Com Edição e Exclusão)
+# 4. IMPRESSORAS
 # ==========================================
 elif menu == "🖨️ Impressoras":
   st.title("🖨️ Gerenciamento de Impressoras")
@@ -441,7 +436,7 @@ elif menu == "⚡ Energia":
 
 
 # ==========================================
-# 6. EMBALAGENS E MATERIAIS (Com Edição e Exclusão)
+# 6. EMBALAGENS E MATERIAIS
 # ==========================================
 elif menu == "🎁 Embalagens e Materiais":
   st.title("🎁 Embalagens e Materiais Adicionais")

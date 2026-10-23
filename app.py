@@ -89,7 +89,7 @@ if os.path.exists("logo.png"):
 
 st.sidebar.title("Menu")
 
-# Opções principais (Produtos movido para o final)
+# Opções principais (Produtos no final)
 menu_opcoes = [
     "Calculadora",
     "Filamentos",
@@ -350,12 +350,11 @@ if menu == "Calculadora":
       st.divider()
       st.subheader("💾 Salvar Produto")
       nome_produto = st.text_input("Título / Nome do Produto para Salvar")
-      # Selectbox para escolha da categoria (sem digitação livre)
       categoria_escolhida = st.selectbox(
-          "Categoria do Produto", CATEGORIAS_PRODUTOS
+          "Categoria do Produto", CATEGORIAS_PRODUTOS, key="select_cat_salvar"
       )
 
-      if st.button("Salvar no Histórico de Produtos"):
+      if st.button("Salvar no Histórico de Produtos", key="btn_salvar_prod"):
         if nome_produto.strip() == "":
           st.error("Por favor, digite um título para o produto.")
         else:
@@ -405,15 +404,19 @@ elif menu == "Produtos":
   st.write("**Filtrar por Categoria:**")
   cols_cat = st.columns(len(CATEGORIAS_PRODUTOS) + 1)
 
-  if cols_cat[0].button("📋 Todos", use_container_width=True):
+  if cols_cat[0].button("📋 Todos", use_container_width=True, key="fil_all"):
     st.session_state["filtra_cat_pagina"] = "Todos"
 
   for i, cat in enumerate(CATEGORIAS_PRODUTOS):
-    if cols_cat[i + 1].button(cat, use_container_width=True):
+    if cols_cat[i + 1].button(
+        cat, use_container_width=True, key=f"fil_cat_{i}"
+    ):
       st.session_state["filtra_cat_pagina"] = cat
 
   # Recupera categoria ativa (prioriza o menu lateral ou os botões superiores)
-  cat_ativa = st.session_state.get("filtra_cat_pagina", categoria_selecionada_filtro)
+  cat_ativa = st.session_state.get(
+      "filtra_cat_pagina", categoria_selecionada_filtro
+  )
   if categoria_selecionada_filtro != "Todos":
     cat_ativa = categoria_selecionada_filtro
 
@@ -442,7 +445,6 @@ elif menu == "Produtos":
       )
     else:
       for idx, prod in enumerate(dados["produtos_salvos"]):
-        # Filtra apenas para exibição
         if prod not in produtos_filtrados:
           continue
 

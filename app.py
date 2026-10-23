@@ -67,6 +67,12 @@ st.markdown(
         background-color: #2BDE55 !important;
         border-color: #2BDE55 !important;
     }
+
+    /* Estilo para deixar produtos inativos com fundo cinza */
+    .produto-inativo-expander div[data-testid="stExpander"] {
+        background-color: #2b2b2b !important;
+        border-color: #444444 !important;
+    }
     </style>
 """,
     unsafe_allow_html=True,
@@ -115,6 +121,8 @@ def carregar_dados():
             p["categoria"] = "Utilitários & Ferramentas"
           if "sku" not in p:
             p["sku"] = ""
+          if "status" not in p:
+            p["status"] = "Ativo"
 
         fils_convertidos = {}
         for k, v in dados.get("filamentos", {}).items():
@@ -437,7 +445,6 @@ if menu == "Calculadora":
           item["preco_unit"] * item["qtd"] for item in materiais_escolhidos
       )
 
-      # Custo total de Mão de Obra por lote dividido pelo lote para unitário
       custo_mo_total = valor_hh * tempo_hh
       custo_mo_unit = custo_mo_total / qtd_pecas_mesa
 
@@ -552,9 +559,9 @@ if menu == "Calculadora":
           f"- **Depreciação de Máquina (por peça):** R$"
           f" {det['custo_maquina_unit']:.2f}"
       )
+      # Correção da formatação da mão de obra sem blocos verdes indesejados
       st.write(
-          f"- **Mão de Obra ({det.get('hh_tempo', 0)}h a R$ {det.get('hh_valor', 20):.2f}/h):** R$"
-          f" {det.get('custo_mo_unit', 0):.2f}"
+          f"- **Mão de Obra:** {det.get('hh_tempo', 0)}h a R$ {det.get('hh_valor', 20):.2f}/h (R$ {det.get('custo_mo_unit', 0):.2f} unit.)"
       )
       for ext in det["extras"]:
         st.write(
@@ -571,13 +578,16 @@ if menu == "Calculadora":
     
     titulo_default = ""
     cat_default_idx = 0
+    status_default_idx = 0 # Ativo por padrão
     if prod_em_edicao:
       titulo_default = prod_em_edicao["titulo"]
       cat_salva = prod_em_edicao.get("categoria", CATEGORIAS_PRODUTOS[0])
       if cat_salva in CATEGORIAS_PRODUTOS:
         cat_default_idx = CATEGORIAS_PRODUTOS.index(cat_salva)
+      if prod_em_edicao.get("status", "Ativo") == "Inativo":
+        status_default_idx = 1
 
-    col_salv1, col_salv2, col_salv3 = st.columns([3, 2, 2])
+    col_salv1, col_salv2, col_salv3, col_salv4 = st.columns([3, 2, 2, 2])
     with col_salv1:
       nome_produto = st.text_input("Título:", value=titulo_default)
     with col_salv2:
@@ -590,6 +600,8 @@ if menu == "Calculadora":
       else:
         sku_final = gerar_proximo_sku(categoria_escolhida, dados["produtos_salvos"])
       st.text_input("SKU:", value=sku_final, disabled=True)
+    with col_salv4:
+      status_produto = st.selectbox("Status:", ["Ativo", "Inativo"], index=status_default_idx, key="select_status_salvar")
 
     btn_label = "Atualizar Produto" if prod_em_edicao else "Salvar"
     if st.button(btn_label, key="btn_salvar_prod"):
@@ -600,6 +612,7 @@ if menu == "Calculadora":
             "titulo": nome_produto,
             "sku": sku_final,
             "categoria": categoria_escolhida,
+            "status": status_produto,
             "preco_definido": preco_definido,
             "lucro_real_pct": lucro_real_pct,
             "lucro_real_reais": lucro_real_reais,
@@ -625,7 +638,7 @@ if menu == "Calculadora":
 
 
 # ==========================================
-# 2. PRODUTOS (Sem emojis/ícones e no formato Título - SKU - Preço)
+# 2. PRODUTOS (Com filtro superior de status e categorias)
 # ==========================================
 elif menu == "Produtos":
   col_tit, col_btn = st.columns([3, 1])
@@ -645,6 +658,15 @@ elif menu == "Produtos":
 
   st.divider()
 
+  # --- FILTRO SUPERIOR DE STATUS (Ativo / Inativo) ---
+  st.write("**Filtrar por Status:**")
+  col_st1, col_st2 = st.columns(2)
+  with col_st1:
+    filtro_ativo = st.checkbox("Ativos", value=True, key="filtro_status_ativo")
+  with col_st2:
+    filtro_inativo = st.checkbox("Inativos", value=True, key="filtro_status_inativo")
+
+  st.write("")
   st.write("**Filtrar por Categoria:**")
 
   if "cat_todos" not in st.session_state:
@@ -702,13 +724,22 @@ elif menu == "Produtos":
     produtos_filtrados = []
     for p in dados["produtos_salvos"]:
       prod_cat = p.get("categoria", "Utilitários & Ferramentas")
+      prod_status = p.get("status", "Ativo")
+
+      # Valida filtro de status
+      match_status = False
+      if prod_status == "Ativo" and filtro_ativo:
+        match_status = True
+      elif prod_status == "Inativo" and filtro_inativo:
+        match_status = True
+
       match_cat = prod_cat in categorias_selecionadas
       match_pesquisa = (
           not termo_pesquisa 
           or termo_pesquisa in p["titulo"].lower() 
           or termo_pesquisa in p.get("sku", "").lower()
       )
-      if match_cat and match_pesquisa:
+      if match_status and match_cat and match_pesquisa:
         produtos_filtrados.append(p)
 
     if not produtos_filtrados:
@@ -724,14 +755,18 @@ elif menu == "Produtos":
         preco_mostrado = prod.get("preco_definido", prod.get("preco_venda", 0.0))
         cat_prod = prod.get("categoria", "Utilitários & Ferramentas")
         sku_prod = prod.get("sku", "")
+        status_prod = prod.get("status", "Ativo")
 
-        # Formato solicitado: Título - SKU - Preço (Sem emojis/ícones)
         titulo_str = prod["titulo"]
         sku_str = sku_prod if sku_prod else "N/A"
         preco_str = f"R$ {preco_mostrado:.2f}"
 
+        # Aplica estilo cinza se o produto for inativo
+        if status_prod == "Inativo":
+          st.markdown('<div class="produto-inativo-expander">', unsafe_allow_html=True)
+
         with st.expander(f"{titulo_str} - {sku_str} - {preco_str}"):
-          st.write(f"**Categoria:** {cat_prod} | **SKU:** {sku_prod if sku_prod else 'N/A'}")
+          st.write(f"**Status:** {status_prod} | **Categoria:** {cat_prod} | **SKU:** {sku_prod if sku_prod else 'N/A'}")
           st.write(f"**Preço Final Definido (Unit.):** R$ {preco_mostrado:.2f}")
           st.write(
               f"**Margem de Lucro Real:** {prod.get('lucro_real_pct', 0.0):.1f}%"
@@ -764,18 +799,15 @@ elif menu == "Produtos":
             st.write("**Materiais Extras / Embalagens:** Nenhum extra selecionado.")
 
           st.write("")
-          col_A, col_B = st.columns([1, 1])
-          with col_A:
-            if st.button("✏️ Editar Produto", key=f"edit_prod_{idx}"):
-              st.session_state["editando_produto_idx"] = idx
-              if "filamentos_lista_calc" in st.session_state:
-                del st.session_state["filamentos_lista_calc"]
-              st.rerun()
-          with col_B:
-            if st.button("🗑️ Excluir Produto", key=f"del_prod_{idx}"):
-              dados["produtos_salvos"].pop(idx)
-              salvar_dados(dados)
-              st.rerun()
+          # Botão de editar mantido, botão de excluir removido conforme solicitado
+          if st.button("✏️ Editar Produto", key=f"edit_prod_{idx}"):
+            st.session_state["editando_produto_idx"] = idx
+            if "filamentos_lista_calc" in st.session_state:
+              del st.session_state["filamentos_lista_calc"]
+            st.rerun()
+
+        if status_prod == "Inativo":
+          st.markdown('</div>', unsafe_allow_html=True)
 
 
 # ==========================================

@@ -51,6 +51,26 @@ st.markdown(
         padding-top: 6px !important;
         padding-bottom: 6px !important;
     }
+
+    /* Alterando a cor padrão de seleção de vermelho para verde (#2BDE55) em checkboxes e radios */
+    input[type="checkbox"]:checked {
+        background-color: #2BDE55 !important;
+        border-color: #2BDE55 !important;
+    }
+    
+    /* Forçar cor verde em componentes de seleção do Streamlit */
+    div[data-baseweb="checkbox"] div[aria-checked="true"],
+    div[data-baseweb="radio"] div[aria-checked="true"] div {
+        background-color: #2BDE55 !important;
+        border-color: #2BDE55 !important;
+    }
+    
+    /* Ajuste para garantir a cor verde nos inputs checados do Streamlit */
+    .stCheckbox [data-baseweb="checkbox"] [hidden]:checked + div,
+    .stRadio [data-baseweb="radio"] input:checked + div {
+        background-color: #2BDE55 !important;
+        border-color: #2BDE55 !important;
+    }
     </style>
 """,
     unsafe_allow_html=True,
@@ -449,7 +469,7 @@ if menu == "Calculadora":
 
 
 # ==========================================
-# 2. PRODUTOS
+# 2. PRODUTOS (Com 4 colunas de categorias compactas)
 # ==========================================
 elif menu == "Produtos":
   col_tit, col_btn = st.columns([3, 1])
@@ -483,19 +503,29 @@ elif menu == "Produtos":
       st.session_state[f"cat_{cat}"] = estado_atual
 
 
-  col_f1, col_f2 = st.columns(2)
+  # Dividindo as categorias em 4 colunas compactas
+  col_f1, col_f2, col_f3, col_f4 = st.columns(4)
 
   with col_f1:
     st.checkbox("Selecionar Todos", key="cat_todos", on_change=toggle_todos)
-    cat_col1 = CATEGORIAS_PRODUTOS[0:3]
-    for cat in cat_col1:
-      st.checkbox(cat, key=f"cat_{cat}")
+    if len(CATEGORIAS_PRODUTOS) > 0:
+      st.checkbox(CATEGORIAS_PRODUTOS[0], key=f"cat_{CATEGORIAS_PRODUTOS[0]}")
 
   with col_f2:
-    st.write("")
-    cat_col2 = CATEGORIAS_PRODUTOS[3:6]
-    for cat in cat_col2:
-      st.checkbox(cat, key=f"cat_{cat}")
+    if len(CATEGORIAS_PRODUTOS) > 1:
+      st.checkbox(CATEGORIAS_PRODUTOS[1], key=f"cat_{CATEGORIAS_PRODUTOS[1]}")
+    if len(CATEGORIAS_PRODUTOS) > 2:
+      st.checkbox(CATEGORIAS_PRODUTOS[2], key=f"cat_{CATEGORIAS_PRODUTOS[2]}")
+
+  with col_f3:
+    if len(CATEGORIAS_PRODUTOS) > 3:
+      st.checkbox(CATEGORIAS_PRODUTOS[3], key=f"cat_{CATEGORIAS_PRODUTOS[3]}")
+    if len(CATEGORIAS_PRODUTOS) > 4:
+      st.checkbox(CATEGORIAS_PRODUTOS[4], key=f"cat_{CATEGORIAS_PRODUTOS[4]}")
+
+  with col_f4:
+    if len(CATEGORIAS_PRODUTOS) > 5:
+      st.checkbox(CATEGORIAS_PRODUTOS[5], key=f"cat_{CATEGORIAS_PRODUTOS[5]}")
 
   todas_marcadas = all(st.session_state[f"cat_{cat}"] for cat in CATEGORIAS_PRODUTOS)
   if todas_marcadas and not st.session_state["cat_todos"]:
@@ -642,7 +672,7 @@ elif menu == "Filamentos":
 
 
 # ==========================================
-# 4. IMPRESSORAS (Layout atualizado igual à referência)
+# 4. IMPRESSORAS
 # ==========================================
 elif menu == "Impressoras":
   st.title("🖨️ Impressoras")
@@ -710,24 +740,28 @@ elif menu == "Impressoras":
 
 
 # ==========================================
-# 5. ENERGIA
+# 5. ENERGIA (Botão de Salvar padrão)
 # ==========================================
 elif menu == "Energia":
   st.title("⚡ Custo de Energia Elétrica")
-  novo_kwh = st.number_input(
-      "Custo da Energia (R$ / kWh)",
-      min_value=0.0,
-      value=float(dados["kw_h"]),
-      format="%.2f",
-  )
-  if st.button("Salvar Custo de Energia"):
-    dados["kw_h"] = novo_kwh
-    salvar_dados(dados)
-    st.success(f"Custo de energia atualizado para R$ {novo_kwh:.2f} / kWh!")
+  
+  with st.form("form_energia"):
+    novo_kwh = st.number_input(
+        "Custo da Energia (R$ / kWh)",
+        min_value=0.0,
+        value=float(dados["kw_h"]),
+        format="%.2f",
+    )
+    submit_energia = st.form_submit_button("Salvar")
+
+    if submit_energia:
+      dados["kw_h"] = novo_kwh
+      salvar_dados(dados)
+      st.success(f"Custo de energia atualizado para R$ {novo_kwh:.2f} / kWh!")
 
 
 # ==========================================
-# 6. EMBALAGENS E MATERIAIS
+# 6. EMBALAGENS E MATERIAIS (Layout atualizado igual à referência)
 # ==========================================
 elif menu == "Embalagens e Materiais":
   st.title("🎁 Embalagens e Materiais Adicionais")
@@ -740,11 +774,16 @@ elif menu == "Embalagens e Materiais":
     val_nome_emb = edit_emb if edit_emb else ""
     val_preco_emb = dados["embalagens"][edit_emb] if edit_emb else 2.00
 
-    nome_emb_in = st.text_input("Nome do Material", value=val_nome_emb)
-    preco_emb_in = st.number_input(
-        "Preço Unitário (R$)", min_value=0.0, value=float(val_preco_emb)
-    )
-    btn_emb_txt = "Atualizar Material" if edit_emb else "Cadastrar Material"
+    col_emb_in1, col_emb_in2 = st.columns([3, 3])
+    with col_emb_in1:
+      nome_emb_in = st.text_input("Nome:", value=val_nome_emb)
+    with col_emb_in2:
+      preco_emb_in = st.number_input(
+          "Preço Unitário (R$):", min_value=0.0, value=float(val_preco_emb)
+      )
+
+    st.write("")
+    btn_emb_txt = "Atualizar Material" if edit_emb else "Salvar"
     submit_emb = st.form_submit_button(btn_emb_txt)
 
     if submit_emb:
@@ -760,18 +799,22 @@ elif menu == "Embalagens e Materiais":
         st.error("O nome não pode estar em branco.")
 
   st.divider()
-  st.subheader("📋 Materiais Cadastrados:")
+
   if dados["embalagens"]:
     for emb, preco in list(dados["embalagens"].items()):
-      ce1, ce2, ce3, ce4 = st.columns([3, 2, 1, 1])
-      ce1.write(f"**{emb}**")
-      ce2.write(f"R$ {preco:.2f} un")
-      if ce3.button("✏️", key=f"edit_emb_{emb}", help="Editar"):
-        st.session_state["editando_emb"] = emb
-        st.rerun()
-      if ce4.button("🗑️", key=f"del_emb_{emb}", help="Excluir"):
-        del dados["embalagens"][emb]
-        salvar_dados(dados)
-        st.rerun()
+      ce1, ce2, ce3, ce4 = st.columns([3, 2, 0.5, 0.5])
+      with ce1:
+        st.write(f"**{emb}**")
+      with ce2:
+        st.write(f"R$ {preco:.2f} un")
+      with ce3:
+        if st.button("✏️", key=f"edit_emb_{emb}", help="Editar"):
+          st.session_state["editando_emb"] = emb
+          st.rerun()
+      with ce4:
+        if st.button("🗑️", key=f"del_emb_{emb}", help="Excluir"):
+          del dados["embalagens"][emb]
+          salvar_dados(dados)
+          st.rerun()
   else:
     st.info("Nenhum material cadastrado.")

@@ -43,6 +43,13 @@ st.markdown(
         color: #FFFFFF !important;
     }
 
+    /* Força o botão de edição a seguir o padrão secundário cinza escuro */
+    div.stButton > button[data-baseweb="button"] {
+        background-color: #1E1E2f !important;
+        color: #FFFFFF !important;
+        border: 1px solid #4A4A5A !important;
+    }
+
     div.stRadio > div {
         gap: 12px !important;
     }
@@ -559,10 +566,12 @@ if menu == "Calculadora":
           f"- **Depreciação de Máquina (por peça):** R$"
           f" {det['custo_maquina_unit']:.2f}"
       )
-      # Correção segura da Mão de Obra sem usar cifra interpretada como LaTeX
-      st.markdown(
-          f"- **Mão de Obra:** {det.get('hh_tempo', 0)}h a R$ {det.get('hh_valor', 20):.2f}/h (R$ {det.get('custo_mo_unit', 0):.2f} unit.)"
-      )
+      # Correção absoluta contra o bug do LaTeX usando st.text puro para Mão de Obra
+      hh_t = det.get('hh_tempo', 0)
+      hh_v = det.get('hh_valor', 20)
+      c_mo = det.get('custo_mo_unit', 0)
+      st.text(f"- Mão de Obra: {hh_t}h a R$ {hh_v:.2f}/h (R$ {c_mo:.2f} unit.)")
+
       for ext in det["extras"]:
         st.write(
             f"- **{ext['nome']} ({ext['qtd']}x por peça):** R$"
@@ -795,9 +804,11 @@ elif menu == "Produtos":
               f"**Impressora:** {det_prod['impressora']} | **Lote na Mesa:**"
               f" {det_prod.get('qtd_pecas_mesa', 1)} un | **Tempo:** {tempo_str}"
           )
-          st.markdown(
-              f"**Mão de Obra:** {det_prod.get('hh_tempo', 0)}h a R$ {det_prod.get('hh_valor', 20):.2f}/h (R$ {det_prod.get('custo_mo_unit', 0):.2f} unit.)"
-          )
+          
+          hh_t_prod = det_prod.get('hh_tempo', 0)
+          hh_v_prod = det_prod.get('hh_valor', 20)
+          c_mo_prod = det_prod.get('custo_mo_unit', 0)
+          st.text(f"Mão de Obra: {hh_t_prod}h a R$ {hh_v_prod:.2f}/h (R$ {c_mo_prod:.2f} unit.)")
           
           extras_lista = det_prod.get("extras", [])
           if extras_lista:
@@ -808,7 +819,7 @@ elif menu == "Produtos":
             st.write("**Materiais Extras / Embalagens:** Nenhum extra selecionado.")
 
           st.write("")
-          # Botão de editar padrão (secondary) aparece APENAS se o produto estiver Ativo
+          # Botão de editar padrão com type="secondary"
           if status_prod == "Ativo":
             if st.button("✏️ Editar Produto", key=f"edit_prod_{idx}", type="secondary"):
               st.session_state["editando_produto_idx"] = idx
@@ -872,7 +883,7 @@ elif menu == "Filamentos":
         st.success("Filamento salvo com sucesso!")
         st.rerun()
       else:
-        st.error("Preencha a Marca e O Nome do filamento.")
+        st.error("Preencha a Marca e o Nome do filamento.")
 
   st.divider()
 

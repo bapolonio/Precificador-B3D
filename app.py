@@ -68,7 +68,10 @@ def salvar_dados(dados):
 # Inicializa os dados
 dados = carregar_dados()
 
-# --- MENU LATERAL (Links Fixos) ---
+# --- MENU LATERAL (Logo e Links Fixos) ---
+if os.path.exists("logo.png"):
+  st.sidebar.image("logo.png", use_container_width=True)
+
 st.sidebar.title("Menu")
 menu_opcoes = [
     "Calculadora",
@@ -83,7 +86,7 @@ menu = st.sidebar.radio("Navegação", menu_opcoes)
 # ==========================================
 # 1. PÁGINA INICIAL: CALCULADORA DE PRECIFICAÇÃO
 # ==========================================
-if menu == "🧮 Calculadora (Início)":
+if menu == "Calculadora":
   st.title("🧮 Calculadora de Precificação - B3D")
   st.write("Preencha os dados da peça para calcular o preço de venda ideal.")
 
@@ -146,7 +149,6 @@ if menu == "🧮 Calculadora (Início)":
       st.subheader("4. Margens e Taxas")
       kw_h_atual = dados["kw_h"]
 
-      # Apenas campos numéricos limpos (sem barras)
       taxa_comissao = st.number_input(
           "Comissão do Site / Marketplace (%)",
           min_value=0.0,
@@ -222,7 +224,6 @@ if menu == "🧮 Calculadora (Início)":
           f"R$ {calc['preco_venda_calculado']:.2f}",
       )
 
-      # --- CAMPO DE PREÇO FINAL DEFINIDO PELO USUÁRIO & CÁLCULO REVERSO ---
       st.markdown("### 💎 Definição Manual do Preço Final")
       col_def1, col_def2 = st.columns(2)
       with col_def1:
@@ -292,13 +293,12 @@ if menu == "🧮 Calculadora (Início)":
 
 
 # ==========================================
-# 2. PRODUTOS SALVOS (Com Botão de Backup JSON)
+# 2. PRODUTOS SALVOS
 # ==========================================
-elif menu == "📦 Produtos":
+elif menu == "Produtos":
   st.title("📦 Produtos")
-  st.write("Produtos")
+  st.write("Histórico de todos os produtos salvos.")
 
-  # Botão de Download de Backup do JSON
   json_str = json.dumps(dados, ensure_ascii=False, indent=4)
   st.download_button(
       label="📥 Fazer Backup da Lista (Baixar JSON)",
@@ -342,7 +342,7 @@ elif menu == "📦 Produtos":
 # ==========================================
 # 3. FILAMENTOS
 # ==========================================
-elif menu == "🧵 Filamentos":
+elif menu == "Filamentos":
   st.title("🧵 Filamentos")
 
   if "editando_fil" not in st.session_state:
@@ -395,7 +395,7 @@ elif menu == "🧵 Filamentos":
 # ==========================================
 # 4. IMPRESSORAS
 # ==========================================
-elif menu == "🖨️ Impressoras":
+elif menu == "Impressoras":
   st.title("🖨️ Impressoras")
 
   if "editando_imp" not in st.session_state:
@@ -455,7 +455,7 @@ elif menu == "🖨️ Impressoras":
 # ==========================================
 # 5. ENERGIA
 # ==========================================
-elif menu == "⚡ Energia":
+elif menu == "Energia":
   st.title("⚡ Custo de Energia Elétrica")
   novo_kwh = st.number_input(
       "Custo da Energia (R$ / kWh)",
@@ -472,7 +472,7 @@ elif menu == "⚡ Energia":
 # ==========================================
 # 6. EMBALAGENS E MATERIAIS
 # ==========================================
-elif menu == "🎁 Embalagens e Materiais":
+elif menu == "Embalagens e Materiais":
   st.title("🎁 Embalagens e Materiais Adicionais")
 
   if "editando_emb" not in st.session_state:

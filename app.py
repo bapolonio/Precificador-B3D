@@ -559,8 +559,8 @@ if menu == "Calculadora":
           f"- **Depreciação de Máquina (por peça):** R$"
           f" {det['custo_maquina_unit']:.2f}"
       )
-      # Mão de obra formatada limpa (sem tags HTML/Markdown indesejadas)
-      st.write(
+      # Correção segura da Mão de Obra sem usar cifra interpretada como LaTeX
+      st.markdown(
           f"- **Mão de Obra:** {det.get('hh_tempo', 0)}h a R$ {det.get('hh_valor', 20):.2f}/h (R$ {det.get('custo_mo_unit', 0):.2f} unit.)"
       )
       for ext in det["extras"]:
@@ -578,7 +578,7 @@ if menu == "Calculadora":
     
     titulo_default = ""
     cat_default_idx = 0
-    status_default_idx = 0 # Ativo por padrão
+    status_default_idx = 0
     if prod_em_edicao:
       titulo_default = prod_em_edicao["titulo"]
       cat_salva = prod_em_edicao.get("categoria", CATEGORIAS_PRODUTOS[0])
@@ -638,7 +638,7 @@ if menu == "Calculadora":
 
 
 # ==========================================
-# 2. PRODUTOS (Com alteração de status direta e restrição de edição se inativo)
+# 2. PRODUTOS
 # ==========================================
 elif menu == "Produtos":
   col_tit, col_btn = st.columns([3, 1])
@@ -658,7 +658,6 @@ elif menu == "Produtos":
 
   st.divider()
 
-  # --- FILTRO SUPERIOR DE STATUS (Ativo / Inativo) ---
   st.write("**Filtrar por Status:**")
   col_st1, col_st2 = st.columns(2)
   with col_st1:
@@ -764,7 +763,6 @@ elif menu == "Produtos":
           st.markdown('<div class="produto-inativo-expander">', unsafe_allow_html=True)
 
         with st.expander(f"{titulo_str} - {sku_str} - {preco_str}"):
-          # Seleção direta de status dentro dos detalhes para alterar sem precisar ir na calculadora
           novo_status_escolhido = st.selectbox(
               "Status do Produto", 
               ["Ativo", "Inativo"], 
@@ -797,7 +795,7 @@ elif menu == "Produtos":
               f"**Impressora:** {det_prod['impressora']} | **Lote na Mesa:**"
               f" {det_prod.get('qtd_pecas_mesa', 1)} un | **Tempo:** {tempo_str}"
           )
-          st.write(
+          st.markdown(
               f"**Mão de Obra:** {det_prod.get('hh_tempo', 0)}h a R$ {det_prod.get('hh_valor', 20):.2f}/h (R$ {det_prod.get('custo_mo_unit', 0):.2f} unit.)"
           )
           
@@ -810,9 +808,9 @@ elif menu == "Produtos":
             st.write("**Materiais Extras / Embalagens:** Nenhum extra selecionado.")
 
           st.write("")
-          # Botão de editar aparece APENAS se o produto estiver Ativo
+          # Botão de editar padrão (secondary) aparece APENAS se o produto estiver Ativo
           if status_prod == "Ativo":
-            if st.button("✏️ Editar Produto", key=f"edit_prod_{idx}"):
+            if st.button("✏️ Editar Produto", key=f"edit_prod_{idx}", type="secondary"):
               st.session_state["editando_produto_idx"] = idx
               if "filamentos_lista_calc" in st.session_state:
                 del st.session_state["filamentos_lista_calc"]
@@ -874,7 +872,7 @@ elif menu == "Filamentos":
         st.success("Filamento salvo com sucesso!")
         st.rerun()
       else:
-        st.error("Preencha a Marca e o Nome do filamento.")
+        st.error("Preencha a Marca e O Nome do filamento.")
 
   st.divider()
 

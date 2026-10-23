@@ -43,8 +43,8 @@ st.markdown(
         color: #FFFFFF !important;
     }
 
-    /* Força o botão de edição a seguir o padrão secundário cinza escuro */
-    div.stButton > button[data-baseweb="button"] {
+    /* Força específica para o botão de Editar Produto ficar com o padrão escuro */
+    button[key*="edit_prod"] {
         background-color: #1E1E2f !important;
         color: #FFFFFF !important;
         border: 1px solid #4A4A5A !important;
@@ -566,7 +566,7 @@ if menu == "Calculadora":
           f"- **Depreciação de Máquina (por peça):** R$"
           f" {det['custo_maquina_unit']:.2f}"
       )
-      # Correção absoluta contra o bug do LaTeX usando st.text puro para Mão de Obra
+      
       hh_t = det.get('hh_tempo', 0)
       hh_v = det.get('hh_valor', 20)
       c_mo = det.get('custo_mo_unit', 0)
@@ -819,7 +819,7 @@ elif menu == "Produtos":
             st.write("**Materiais Extras / Embalagens:** Nenhum extra selecionado.")
 
           st.write("")
-          # Botão de editar padrão com type="secondary"
+          # Botão de editar com tipo secundário garantido por seletor CSS
           if status_prod == "Ativo":
             if st.button("✏️ Editar Produto", key=f"edit_prod_{idx}", type="secondary"):
               st.session_state["editando_produto_idx"] = idx

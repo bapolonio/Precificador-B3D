@@ -81,7 +81,7 @@ menu_opcoes = [
     "Energia",
     "Embalagens e Materiais",
 ]
-menu = st.sidebar.radio("", menu_opcoes)
+menu = st.sidebar.radio("Navegação", menu_opcoes)
 
 # ==========================================
 # 1. PÁGINA INICIAL: CALCULADORA DE PRECIFICAÇÃO
@@ -119,12 +119,23 @@ if menu == "Calculadora":
       st.info(f"🔹 Preço do Kg ({fil_selecionado}): **R$ {preco_kg_atual:.2f}**")
 
       st.subheader("2. Parâmetros de Impressão")
-      tempo_h = st.number_input(
-          "Tempo de Impressão (horas)",
-          min_value=0.1,
-          value=4.0,
-          format="%.2f",
-      )
+
+      # Campos separados para Horas e Minutos
+      col_h1, col_h2 = st.columns(2)
+      with col_h1:
+        horas_imp = st.number_input(
+            "Horas de Impressão", min_value=0, value=4, step=1
+        )
+      with col_h2:
+        minutos_imp = st.number_input(
+            "Minutos de Impressão", min_value=0, max_value=59, value=0, step=1
+        )
+
+      # Conversão automática para decimal usada nos cálculos
+      tempo_h = horas_imp + (minutos_imp / 60.0)
+      if tempo_h <= 0:
+        tempo_h = 0.01  # Evita divisão por zero
+
       peso_g = st.number_input(
           "Quantidade de Filamento (gramas)", min_value=0.1, value=50.0
       )
@@ -205,6 +216,7 @@ if menu == "Calculadora":
               "filamento": fil_selecionado,
               "peso_g": peso_g,
               "tempo_h": tempo_h,
+              "tempo_formatado": f"{horas_imp}h {minutos_imp}min",
               "custo_material": custo_material,
               "custo_energia": custo_energia,
               "custo_maquina": custo_maquina,
@@ -224,6 +236,7 @@ if menu == "Calculadora":
           f"R$ {calc['preco_venda_calculado']:.2f}",
       )
 
+      # --- CAMPO DE PREÇO FINAL DEFINIDO PELO USUÁRIO & CÁLCULO REVERSO ---
       st.markdown("### 💎 Definição Manual do Preço Final")
       col_def1, col_def2 = st.columns(2)
       with col_def1:
@@ -254,6 +267,9 @@ if menu == "Calculadora":
       with st.expander("🔍 Ver Detalhamento dos Custos"):
         det = calc["detalhes"]
         st.write(f"- **Impressora usada:** {det['impressora']}")
+        st.write(
+            f"- **Tempo de Impressão:** {det.get('tempo_formatado', f'{det[\"tempo_h\"]:.2f}h')}"
+        )
         st.write(
             f"- **Filamento ({det['filamento']} - {det['peso_g']}g):** R$"
             f" {det['custo_material']:.2f}"
@@ -296,7 +312,7 @@ if menu == "Calculadora":
 # 2. PRODUTOS SALVOS
 # ==========================================
 elif menu == "Produtos":
-  st.title("📦 Produtos")
+  st.title("📦 Produtos Salvos")
   st.write("Histórico de todos os produtos salvos.")
 
   json_str = json.dumps(dados, ensure_ascii=False, indent=4)
@@ -328,9 +344,12 @@ elif menu == "Produtos":
             f"**Preço Calculado Original:** R$"
             f" {prod.get('preco_calculado', 0.0):.2f} ({prod.get('lucro_calc_pct', 0.0):.0f}% de lucro)"
         )
+        tempo_str = prod["detalhes"].get(
+            "tempo_formatado", f"{prod['detalhes']['tempo_h']:.2f}h"
+        )
         st.write(
             f"**Impressora:** {prod['detalhes']['impressora']} | **Filamento:**"
-            f" {prod['detalhes']['filamento']}"
+            f" {prod['detalhes']['filamento']} | **Tempo:** {tempo_str}"
         )
 
         if st.button(f"Excluir produto #{idx+1}", key=f"del_prod_{idx}"):
@@ -343,7 +362,7 @@ elif menu == "Produtos":
 # 3. FILAMENTOS
 # ==========================================
 elif menu == "Filamentos":
-  st.title("🧵 Filamentos")
+  st.title("🧵 Gerenciamento de Filamentos")
 
   if "editando_fil" not in st.session_state:
     st.session_state["editando_fil"] = None
@@ -396,7 +415,7 @@ elif menu == "Filamentos":
 # 4. IMPRESSORAS
 # ==========================================
 elif menu == "Impressoras":
-  st.title("🖨️ Impressoras")
+  st.title("🖨️ Gerenciamento de Impressoras")
 
   if "editando_imp" not in st.session_state:
     st.session_state["editando_imp"] = None

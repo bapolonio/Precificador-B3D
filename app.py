@@ -81,7 +81,7 @@ menu_opcoes = [
     "Energia",
     "Embalagens e Materiais",
 ]
-menu = st.sidebar.radio("Navegação", menu_opcoes)
+menu = st.sidebar.radio("", menu_opcoes)
 
 # ==========================================
 # 1. PÁGINA INICIAL: CALCULADORA DE PRECIFICAÇÃO

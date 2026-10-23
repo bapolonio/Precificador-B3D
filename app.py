@@ -5,19 +5,20 @@ import streamlit as st
 # Configuração da página e layout
 st.set_page_config(page_title="Precificador B3D", page_icon="🖨️", layout="wide")
 
-# --- ESTILIZAÇÃO CSS (Cor Primária Verde #B2DE55 e Estilo do Botão) ---
+# --- ESTILIZAÇÃO CSS (Cor Primária Verde #B2DE55 e Estilo Forçado do Botão) ---
 st.markdown(
     """
     <style>
-    /* Botões primários com a cor #B2DE55, fonte maior e em negrito */
-    .stButton > button {
+    /* Força o texto do botão principal a ficar grande, negrito e escuro */
+    div.stButton > button {
         background-color: #B2DE55 !important;
         color: #1E1E1E !important;
-        font-weight: 700 !important;
-        font-size: 18px !important;
-        border: none;
+        font-weight: 800 !important;
+        font-size: 20px !important;
+        border: none !important;
+        padding: 0.75rem 1rem !important;
     }
-    .stButton > button:hover {
+    div.stButton > button:hover {
         background-color: #9ec944 !important;
         color: #1E1E1E !important;
     }
@@ -208,13 +209,16 @@ if menu == "🧮 Calculadora (Início)":
       if taxa_comissao_dec >= 1.0:
         taxa_comissao_dec = 0.99
 
-      preco_venda_final = subtotal_com_lucro / (1 - taxa_comissao_dec)
-      valor_comissao = preco_venda_final * taxa_comissao_dec
+      preco_venda_calculado = subtotal_com_lucro / (1 - taxa_comissao_dec)
+      valor_comissao_calc = preco_venda_calculado * taxa_comissao_dec
+      lucro_reais_calc = preco_venda_calculado - custo_producao - valor_comissao_calc
 
       st.session_state["ultimo_calculo"] = {
           "custo_producao": custo_producao,
-          "preco_venda_final": preco_venda_final,
-          "lucro_reais": preco_venda_final - custo_producao - valor_comissao,
+          "preco_venda_calculado": preco_venda_calculado,
+          "lucro_calc_reais": lucro_reais_calc,
+          "lucro_calc_pct": lucro_desejado,
+          "taxa_comissao_pct": taxa_comissao,
           "detalhes": {
               "impressora": imp_selecionada,
               "filamento": fil_selecionado,
@@ -224,7 +228,6 @@ if menu == "🧮 Calculadora (Início)":
               "custo_energia": custo_energia,
               "custo_maquina": custo_maquina,
               "extras": materiais_escolhidos,
-              "comissao_site": valor_comissao,
           },
       }
 
@@ -235,10 +238,44 @@ if menu == "🧮 Calculadora (Início)":
 
       r1, r2, r3 = st.columns(3)
       r1.metric("Custo de Produção Total", f"R$ {calc['custo_producao']:.2f}")
-      r2.metric("Lucro Estimado", f"R$ {calc['lucro_reais']:.2f}")
-      r3.metric(
-          "💎 Preço Final de Venda", f"R$ {calc['preco_venda_final']:.2f}"
+      r2.metric(
+          f"Preço Calculado ({calc['lucro_calc_pct']:.0f}% Lucro)",
+          f"R$ {calc['preco_venda_calculado']:.2f}",
       )
+
+      # --- CAMPO DE PREÇO FINAL DEFINIDO PELO USUÁRIO & CÁLCULO REVERSO ---
+      st.markdown("### 💎 Definição Manual do Preço Final")
+      col_def1, col_def2 = st.columns(2)
+      with col_def1:
+        preco_definido = st.number_input(
+            "Preço Final Definido (R$)",
+            min_value=0.0,
+            value=float(round(calc["preco_venda_calculado"], 2)),
+            format="%.2f",
+            key="input_preco_def",
+        )
+
+      # Cálculo inverso para achar a margem real baseada no preço definido
+      # Preço_Definido = [Custo + Comissão(Preço_Definido)] * (1 + Lucro_Real)
+      # Comissão = Preço_Definido * (taxa_comissao_pct / 100)
+      # Líquido após comissão = Preço_Definido * (1 - taxa_comissao_dec)
+      # Lucro_Real_Reais = Líquido - Custo_Producao
+      # Lucro_Real_Pct = (Lucro_Real_Reais / Custo_Producao) * 100
+      taxa_com_dec = calc["taxa_comissao_pct"] / 100.0
+      liquido_apos_comissao = preco_definido * (1 - taxa_com_dec)
+      lucro_real_reais = liquido_apos_comissao - calc["custo_producao"]
+      lucro_real_pct = (
+          (lucro_real_reais / calc["custo_producao"]) * 100
+          if calc["custo_producao"] > 0
+          else 0.0
+      )
+
+      with col_def2:
+        st.metric(
+            "Margem de Lucro Real Obtida",
+            f"{lucro_real_pct:.1f}%",
+            delta=f"R$ {lucro_real_reais:.2f} de lucro líquido",
+        )
 
       with st.expander("🔍 Ver Detalhamento dos Custos"):
         det = calc["detalhes"]
@@ -254,7 +291,10 @@ if menu == "🧮 Calculadora (Início)":
               f"- **{ext['nome']} ({ext['qtd']}x):** R$"
               f" {ext['preco_unit'] * ext['qtd']:.2f}"
           )
-        st.write(f"- **Taxa/Comissão do Site:** R$ {det['comissao_site']:.2f}")
+        st.write(
+            f"- **Comissão do Site ({calc['taxa_comissao_pct']}%):** R$"
+            f" {preco_definido * taxa_com_dec:.2f}"
+        )
 
       st.divider()
       st.subheader("💾 Salvar Produto")
@@ -265,8 +305,12 @@ if menu == "🧮 Calculadora (Início)":
         else:
           novo_prod = {
               "titulo": nome_produto,
-              "preco_venda": calc["preco_venda_final"],
+              "preco_definido": preco_definido,
+              "lucro_real_pct": lucro_real_pct,
+              "lucro_real_reais": lucro_real_reais,
               "custo": calc["custo_producao"],
+              "preco_calculado": calc["preco_venda_calculado"],
+              "lucro_calc_pct": calc["lucro_calc_pct"],
               "detalhes": calc["detalhes"],
           }
           dados["produtos_salvos"].append(novo_prod)
@@ -290,14 +334,26 @@ elif menu == "📦 Produtos Salvos":
       st.rerun()
 
     for idx, prod in enumerate(dados["produtos_salvos"]):
+      preco_mostrado = prod.get("preco_definido", prod.get("preco_venda", 0.0))
       with st.expander(
-          f"📌 {prod['titulo']} — **R$ {prod['preco_venda']:.2f}**"
+          f"📌 {prod['titulo']} — **R$ {preco_mostrado:.2f}**"
       ):
+        st.write(f"**Preço Final Definido:** R$ {preco_mostrado:.2f}")
+        st.write(
+            f"**Margem de Lucro Real:** {prod.get('lucro_real_pct', 0.0):.1f}%"
+            f" (R$ {prod.get('lucro_real_reais', 0.0):.2f})"
+        )
+        st.divider()
         st.write(f"**Custo de Produção:** R$ {prod['custo']:.2f}")
+        st.write(
+            f"**Preço Calculado Original:** R$"
+            f" {prod.get('preco_calculado', 0.0):.2f} ({prod.get('lucro_calc_pct', 0.0):.0f}% de lucro)"
+        )
         st.write(
             f"**Impressora:** {prod['detalhes']['impressora']} | **Filamento:**"
             f" {prod['detalhes']['filamento']}"
         )
+
         if st.button(f"Excluir produto #{idx+1}", key=f"del_prod_{idx}"):
           dados["produtos_salvos"].pop(idx)
           salvar_dados(dados)

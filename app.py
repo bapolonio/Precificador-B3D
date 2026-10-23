@@ -685,7 +685,7 @@ elif menu == "Produtos":
         sku_str = f" [SKU: {sku_prod}]" if sku_prod else ""
 
         with st.expander(
-            f"📌 [{cat_prod}] {prod['titulo']}{sku_str} — **R$ {preco_mostrado:.2f} (Unit.)**"
+            f"{prod['titulo']}   {sku_str} — **R$ {preco_mostrado:.2f} (Unit.)**"
         ):
           st.write(f"**Categoria:** {cat_prod} | **SKU:** {sku_prod if sku_prod else 'N/A'}")
           st.write(f"**Preço Final Definido (Unit.):** R$ {preco_mostrado:.2f}")

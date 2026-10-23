@@ -5,7 +5,7 @@ import streamlit as st
 # Configuração da página e layout
 st.set_page_config(page_title="Precificador B3D", page_icon="💲", layout="wide")
 
-# --- ESTILIZAÇÃO CSS (Alinhamento do Backup, Compactação e Ajustes Visuais) ---
+# --- ESTILIZAÇÃO CSS (Alinhamento, Compactação e Ajustes Visuais) ---
 st.markdown(
     """
     <style>
@@ -62,13 +62,11 @@ def carregar_dados():
       for p in dados.get("produtos_salvos", []):
         if "categoria" not in p:
           p["categoria"] = "Utilitários & Ferramentas"
-      
-      # Migração de filamentos antigos se necessário (caso venham como dicionário simples de string -> float)
+
       fils_convertidos = {}
       for k, v in dados.get("filamentos", {}).items():
         if isinstance(v, (int, float)):
-          # Formato antigo: "Nome": 85.0 -> Transforma em Marca/Nome
-            fils_convertidos[k] = {"marca": "Genérica", "preco": float(v)}
+          fils_convertidos[k] = {"marca": "Genérica", "preco": float(v)}
         else:
           fils_convertidos[k] = v
       dados["filamentos"] = fils_convertidos
@@ -99,7 +97,7 @@ def salvar_dados(dados):
 # Inicializa os dados
 dados = carregar_dados()
 
-# --- MENU LATERAL (Limpo, sem submenu de categorias) ---
+# --- MENU LATERAL ---
 if os.path.exists("logo.png"):
   st.sidebar.image("logo.png", use_container_width=True)
 
@@ -166,54 +164,66 @@ if menu == "Calculadora":
         tempo_h = 0.01
 
       st.write("---")
-      st.write(
-          "**Quantidade total de Filamento para a mesa (gramas):**"
-      )
+      st.write("**Quantidade total de filamento na mesa:**")
 
       # Gerenciamento dinâmico de múltiplos filamentos na calculadora
-      if "qtd_filamentos_calc" not in st.session_state:
-        st.session_state["qtd_filamentos_calc"] = 1
+      if "filamentos_lista_calc" not in st.session_state:
+        st.session_state["filamentos_lista_calc"] = [{"id": 0}]
+        st.session_state["calc_contador_id"] = 1
 
-      if st.button("➕ Adicionar Filamento"):
-        st.session_state["qtd_filamentos_calc"] += 1
-        st.rerun()
-
-      if st.button("➖ Remover Último") and st.session_state["qtd_filamentos_calc"] > 1:
-        st.session_state["qtd_filamentos_calc"] -= 1
-        st.rerun()
-
-      filamentos_escolhidos_calc = []
-      opcoes_filamentos = list(dados["filamentos"].keys())
-
-      # Mapeia nome formatado "Marca - Nome"
       mapa_fil_formatado = {
           f"{info['marca']} - {nome}": nome
           for nome, info in dados["filamentos"].items()
       }
       lista_formatada = list(mapa_fil_formatado.keys())
 
-      for i in range(st.session_state["qtd_filamentos_calc"]):
-        st.markdown(f"**Filamento #{i+1}**")
-        fil_formatado_escolhido = st.selectbox(
-            f"Nome do filamento selecionado #{i+1}",
-            lista_formatada,
-            key=f"calc_fil_{i}",
-        )
+      filamentos_escolhidos_calc = []
+
+      # Renderiza cada linha de filamento dinamicamente lado a lado
+      for idx, item in enumerate(st.session_state["filamentos_lista_calc"]):
+        item_id = item["id"]
+        st.markdown(f"**Filamento #{idx+1}**")
+
+        col_f_sel, col_f_qtd, col_f_del = st.columns([3, 2, 0.8])
+
+        with col_f_sel:
+          fil_formatado_escolhido = st.selectbox(
+              f"Filamento #{idx+1}",
+              lista_formatada,
+              key=f"calc_fil_{item_id}",
+              label_visibility="collapsed",
+          )
+        
         nome_real_fil = mapa_fil_formatado[fil_formatado_escolhido]
         preco_kg_fil = dados["filamentos"][nome_real_fil]["preco"]
 
-        gramas_fil = st.number_input(
-            f"Quantidade em gramas (Filamento #{i+1})",
-            min_value=0.0,
-            value=50.0 if i == 0 else 0.0,
-            key=f"calc_gramas_{i}",
-        )
+        with col_f_qtd:
+          gramas_fil = st.number_input(
+              f"Quantidade (g) #{idx+1}",
+              min_value=0.0,
+              value=50.0 if idx == 0 else 0.0,
+              key=f"calc_gramas_{item_id}",
+          )
+
+        with col_f_del:
+          st.write("") # Pequeno ajuste vertical
+          if len(st.session_state["filamentos_lista_calc"]) > 1:
+            if st.button("🗑️", key=f"del_linha_{item_id}", help="Remover este filamento"):
+              st.session_state["filamentos_lista_calc"].pop(idx)
+              st.rerun()
 
         filamentos_escolhidos_calc.append({
             "nome": nome_real_fil,
             "preco_kg": preco_kg_fil,
             "gramas": gramas_fil,
         })
+
+      # Botão para Adicionar Novo Filamento
+      if st.button("➕ Adicionar Filamento"):
+        novo_id = st.session_state["calc_contador_id"]
+        st.session_state["filamentos_lista_calc"].append({"id": novo_id})
+        st.session_state["calc_contador_id"] += 1
+        st.rerun()
 
     with col_dir:
       st.subheader(
@@ -259,7 +269,6 @@ if menu == "Calculadora":
 
     # --- BOTÃO DE CALCULAR ---
     if st.button("Calcular Preço", type="primary", use_container_width=True):
-      # Soma o custo de todos os filamentos adicionados
       custo_material_total = sum(
           (f["preco_kg"] / 1000) * f["gramas"] for f in filamentos_escolhidos_calc
       )
@@ -536,7 +545,7 @@ elif menu == "Produtos":
 
 
 # ==========================================
-# 3. FILAMENTOS (Com suporte a Marca)
+# 3. FILAMENTOS
 # ==========================================
 elif menu == "Filamentos":
   st.title("🧵 Filamentos")

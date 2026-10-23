@@ -69,14 +69,16 @@ def salvar_dados(dados):
 dados = carregar_dados()
 
 # --- MENU LATERAL (Links Fixos) ---
-st.sidebar.title("🖨️ B3D - Painel")
+st.sidebar.image(
+    "logo.png", use_container_width=True
+st.sidebar.title("Menu")
 menu_opcoes = [
-    "🧮 Calculadora (Início)",
-    "📦 Produtos Salvos",
-    "🧵 Filamentos",
-    "🖨️ Impressoras",
-    "⚡ Energia",
-    "🎁 Embalagens e Materiais",
+    "Calculadora",
+    "Produtos",
+    "Filamentos",
+    "Impressoras",
+    "Energia",
+    "Embalagens e Materiais",
 ]
 menu = st.sidebar.radio("Navegação", menu_opcoes)
 
@@ -294,9 +296,9 @@ if menu == "🧮 Calculadora (Início)":
 # ==========================================
 # 2. PRODUTOS SALVOS (Com Botão de Backup JSON)
 # ==========================================
-elif menu == "📦 Produtos Salvos":
-  st.title("📦 Produtos Precificados e Salvos")
-  st.write("Histórico de todos os produtos salvos.")
+elif menu == "📦 Produtos":
+  st.title("📦 Produtos")
+  st.write("Produtos")
 
   # Botão de Download de Backup do JSON
   json_str = json.dumps(dados, ensure_ascii=False, indent=4)
@@ -343,7 +345,7 @@ elif menu == "📦 Produtos Salvos":
 # 3. FILAMENTOS
 # ==========================================
 elif menu == "🧵 Filamentos":
-  st.title("🧵 Gerenciamento de Filamentos")
+  st.title("🧵 Filamentos")
 
   if "editando_fil" not in st.session_state:
     st.session_state["editando_fil"] = None
@@ -396,7 +398,7 @@ elif menu == "🧵 Filamentos":
 # 4. IMPRESSORAS
 # ==========================================
 elif menu == "🖨️ Impressoras":
-  st.title("🖨️ Gerenciamento de Impressoras")
+  st.title("🖨️ Impressoras")
 
   if "editando_imp" not in st.session_state:
     st.session_state["editando_imp"] = None

@@ -134,7 +134,7 @@ if menu == "Calculadora":
       # Conversão automática para decimal usada nos cálculos
       tempo_h = horas_imp + (minutos_imp / 60.0)
       if tempo_h <= 0:
-        tempo_h = 0.01  # Evita divisão por zero
+        tempo_h = 0.01
 
       peso_g = st.number_input(
           "Quantidade de Filamento (gramas)", min_value=0.1, value=50.0
@@ -266,10 +266,11 @@ if menu == "Calculadora":
 
       with st.expander("🔍 Ver Detalhamento dos Custos"):
         det = calc["detalhes"]
-        st.write(f"- **Impressora usada:** {det['impressora']}")
-        st.write(
-            f"- **Tempo de Impressão:** {det.get('tempo_formatado', f'{det[\"tempo_h\"]:.2f}h')}"
+        tempo_str_exp = det.get(
+            "tempo_formatado", f"{det['tempo_h']:.2f}h"
         )
+        st.write(f"- **Impressora usada:** {det['impressora']}")
+        st.write(f"- **Tempo de Impressão:** {tempo_str_exp}")
         st.write(
             f"- **Filamento ({det['filamento']} - {det['peso_g']}g):** R$"
             f" {det['custo_material']:.2f}"

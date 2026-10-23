@@ -120,6 +120,18 @@ if menu == "Calculadora":
 
       st.subheader("2. Parâmetros de Impressão")
 
+      # Campo para quantidade de unidades na mesa (Lote)
+      qtd_pecas_mesa = st.number_input(
+          "Unidades impressas de uma vez na mesa (Lote)",
+          min_value=1,
+          value=1,
+          step=1,
+          help=(
+              "Quantas peças iguais são impressas simultaneamente na mesma"
+              " fornada."
+          ),
+      )
+
       # Campos separados para Horas e Minutos
       col_h1, col_h2 = st.columns(2)
       with col_h1:
@@ -137,22 +149,27 @@ if menu == "Calculadora":
         tempo_h = 0.01
 
       peso_g = st.number_input(
-          "Quantidade de Filamento (gramas)", min_value=0.1, value=50.0
+          "Quantidade Total de Filamento para a mesa (gramas)",
+          min_value=0.1,
+          value=50.0,
+          help="Peso total consumido na impressão de todas as unidades juntas.",
       )
 
     with col_dir:
-      st.subheader("3. Materiais Adicionais (Embalagens/Extras)")
+      st.subheader(
+          "3. Materiais Adicionais por Unidade (Embalagens/Extras)"
+      )
       materiais_escolhidos = []
       if dados["embalagens"]:
-        st.write("Selecione os itens e quantidades extras:")
+        st.write("Selecione os itens e quantidades por peça:")
         for emb, preco_emb in dados["embalagens"].items():
           usar = st.checkbox(f"{emb} (R$ {preco_emb:.2f} un)", key=f"chk_{emb}")
           if usar:
-            qtd = st.number_input(
-                f"Quantidade de {emb}", min_value=1, value=1, key=f"qtd_{emb}"
+            qtd_mat = st.number_input(
+                f"Qtd de {emb} por peça", min_value=1, value=1, key=f"qtd_{emb}"
             )
             materiais_escolhidos.append(
-                {"nome": emb, "preco_unit": preco_emb, "qtd": qtd}
+                {"nome": emb, "preco_unit": preco_emb, "qtd": qtd_mat}
             )
       else:
         st.write("Nenhuma embalagem cadastrada.")
@@ -182,16 +199,28 @@ if menu == "Calculadora":
 
     # --- BOTÃO DE CALCULAR ---
     if st.button("Calcular Preço", type="primary", use_container_width=True):
-      custo_material = (preco_kg_atual / 1000) * peso_g
+      # Custos totais da fornada na mesa
+      custo_material_total = (preco_kg_atual / 1000) * peso_g
       consumo_kwh = (consumo_atual / 1000) * tempo_h
-      custo_energia = consumo_kwh * kw_h_atual
-      custo_maquina = depreciacao_atual * tempo_h
+      custo_energia_total = consumo_kwh * kw_h_atual
+      custo_maquina_total = depreciacao_atual * tempo_h
 
-      custo_extras_total = sum(
+      # Divisão pelo número de peças na mesa (por unidade)
+      custo_material_unit = custo_material_total / qtd_pecas_mesa
+      custo_energia_unit = custo_energia_total / qtd_pecas_mesa
+      custo_maquina_unit = custo_maquina_total / qtd_pecas_mesa
+
+      # Custos extras de embalagem/materiais (já são por unidade)
+      custo_extras_unit = sum(
           item["preco_unit"] * item["qtd"] for item in materiais_escolhidos
       )
+
+      # Custo de produção final por unidade
       custo_producao = (
-          custo_material + custo_energia + custo_maquina + custo_extras_total
+          custo_material_unit
+          + custo_energia_unit
+          + custo_maquina_unit
+          + custo_extras_unit
       )
 
       subtotal_com_lucro = custo_producao * (1 + lucro_desejado_dec)
@@ -214,12 +243,13 @@ if menu == "Calculadora":
           "detalhes": {
               "impressora": imp_selecionada,
               "filamento": fil_selecionado,
-              "peso_g": peso_g,
+              "qtd_pecas_mesa": qtd_pecas_mesa,
+              "peso_total_g": peso_g,
               "tempo_h": tempo_h,
               "tempo_formatado": f"{horas_imp}h {minutos_imp}min",
-              "custo_material": custo_material,
-              "custo_energia": custo_energia,
-              "custo_maquina": custo_maquina,
+              "custo_material_unit": custo_material_unit,
+              "custo_energia_unit": custo_energia_unit,
+              "custo_maquina_unit": custo_maquina_unit,
               "extras": materiais_escolhidos,
           },
       }
@@ -227,21 +257,21 @@ if menu == "Calculadora":
     if "ultimo_calculo" in st.session_state:
       calc = st.session_state["ultimo_calculo"]
       st.divider()
-      st.subheader("📊 Resultado da Precificação")
+      st.subheader("📊 Resultado da Precificação (Por Unidade)")
 
       r1, r2, r3 = st.columns(3)
-      r1.metric("Custo de Produção Total", f"R$ {calc['custo_producao']:.2f}")
+      r1.metric("Custo de Produção (Unit.)", f"R$ {calc['custo_producao']:.2f}")
       r2.metric(
-          f"Preço Calculado ({calc['lucro_calc_pct']:.0f}% Lucro)",
+          f"Preço Calculado Unit. ({calc['lucro_calc_pct']:.0f}% Lucro)",
           f"R$ {calc['preco_venda_calculado']:.2f}",
       )
 
       # --- CAMPO DE PREÇO FINAL DEFINIDO PELO USUÁRIO & CÁLCULO REVERSO ---
-      st.markdown("### 💎 Definição Manual do Preço Final")
+      st.markdown("### 💎 Definição Manual do Preço Final (Unitário)")
       col_def1, col_def2 = st.columns(2)
       with col_def1:
         preco_definido = st.number_input(
-            "Preço Final Definido (R$)",
+            "Preço Final Definido por Unidade (R$)",
             min_value=0.0,
             value=float(round(calc["preco_venda_calculado"], 2)),
             format="%.2f",
@@ -259,27 +289,37 @@ if menu == "Calculadora":
 
       with col_def2:
         st.metric(
-            "Margem de Lucro Real Obtida",
+            "Margem de Lucro Real Obtida (Unit.)",
             f"{lucro_real_pct:.1f}%",
-            delta=f"R$ {lucro_real_reais:.2f} de lucro líquido",
+            delta=f"R$ {lucro_real_reais:.2f} de lucro líquido por peça",
         )
 
-      with st.expander("🔍 Ver Detalhamento dos Custos"):
+      with st.expander("🔍 Ver Detalhamento dos Custos Unitários"):
         det = calc["detalhes"]
         tempo_str_exp = det.get(
             "tempo_formatado", f"{det['tempo_h']:.2f}h"
         )
-        st.write(f"- **Impressora usada:** {det['impressora']}")
-        st.write(f"- **Tempo de Impressão:** {tempo_str_exp}")
         st.write(
-            f"- **Filamento ({det['filamento']} - {det['peso_g']}g):** R$"
-            f" {det['custo_material']:.2f}"
+            f"- **Lote na Mesa:** {det['qtd_pecas_mesa']} peça(s) impressas"
+            " juntas"
         )
-        st.write(f"- **Energia elétrica:** R$ {det['custo_energia']:.2f}")
-        st.write(f"- **Depreciação de Máquina:** R$ {det['custo_maquina']:.2f}")
+        st.write(f"- **Impressora usada:** {det['impressora']}")
+        st.write(f"- **Tempo Total da Mesa:** {tempo_str_exp}")
+        st.write(
+            f"- **Filamento por peça ({det['peso_total_g']}g /"
+            f" {det['qtd_pecas_mesa']}un):** R$ {det['custo_material_unit']:.2f}"
+        )
+        st.write(
+            f"- **Energia elétrica (por peça):** R$"
+            f" {det['custo_energia_unit']:.2f}"
+        )
+        st.write(
+            f"- **Depreciação de Máquina (por peça):** R$"
+            f" {det['custo_maquina_unit']:.2f}"
+        )
         for ext in det["extras"]:
           st.write(
-              f"- **{ext['nome']} ({ext['qtd']}x):** R$"
+              f"- **{ext['nome']} ({ext['qtd']}x por peça):** R$"
               f" {ext['preco_unit'] * ext['qtd']:.2f}"
           )
         st.write(
@@ -332,25 +372,27 @@ elif menu == "Produtos":
     for idx, prod in enumerate(dados["produtos_salvos"]):
       preco_mostrado = prod.get("preco_definido", prod.get("preco_venda", 0.0))
       with st.expander(
-          f"📌 {prod['titulo']} — **R$ {preco_mostrado:.2f}**"
+          f"📌 {prod['titulo']} — **R$ {preco_mostrado:.2f} (Unit.)**"
       ):
-        st.write(f"**Preço Final Definido:** R$ {preco_mostrado:.2f}")
+        st.write(f"**Preço Final Definido (Unit.):** R$ {preco_mostrado:.2f}")
         st.write(
             f"**Margem de Lucro Real:** {prod.get('lucro_real_pct', 0.0):.1f}%"
-            f" (R$ {prod.get('lucro_real_reais', 0.0):.2f})"
+            f" (R$ {prod.get('lucro_real_reais', 0.0):.2f} por peça)"
         )
         st.divider()
-        st.write(f"**Custo de Produção:** R$ {prod['custo']:.2f}")
+        st.write(f"**Custo de Produção (Unit.):** R$ {prod['custo']:.2f}")
         st.write(
-            f"**Preço Calculado Original:** R$"
+            f"**Preço Calculado Original (Unit.):** R$"
             f" {prod.get('preco_calculado', 0.0):.2f} ({prod.get('lucro_calc_pct', 0.0):.0f}% de lucro)"
         )
-        tempo_str = prod["detalhes"].get(
-            "tempo_formatado", f"{prod['detalhes']['tempo_h']:.2f}h"
+        det_prod = prod["detalhes"]
+        tempo_str = det_prod.get(
+            "tempo_formatado", f"{det_prod['tempo_h']:.2f}h"
         )
         st.write(
-            f"**Impressora:** {prod['detalhes']['impressora']} | **Filamento:**"
-            f" {prod['detalhes']['filamento']} | **Tempo:** {tempo_str}"
+            f"**Impressora:** {det_prod['impressora']} | **Filamento:**"
+            f" {det_prod['filamento']} | **Lote na Mesa:**"
+            f" {det_prod.get('qtd_pecas_mesa', 1)} un | **Tempo:** {tempo_str}"
         )
 
         if st.button(f"Excluir produto #{idx+1}", key=f"del_prod_{idx}"):

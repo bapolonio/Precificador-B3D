@@ -342,7 +342,10 @@ if menu == "Calculadora":
     st.divider()
 
     st.subheader("3. Embalagens e Materiais Adicionais")
-    st.write("Selecione os itens e informe a quantidade usada por peça:")
+    st.write(
+        "Selecione os itens e informe a quantidade total usada no lote"
+        " completo (o custo será dividido pelo número de peças do lote):"
+    )
     
     extras_salvos = {}
     if prod_em_edicao:
@@ -360,7 +363,12 @@ if menu == "Calculadora":
           if usar:
             qtd_default_mat = extras_salvos.get(emb, 1)
             qtd_mat = st.number_input(
-                f"Qtd de {emb}", min_value=1, value=int(qtd_default_mat), key=f"qtd_{emb}", step=1
+                f"Qtd de {emb} (lote todo)",
+                min_value=1,
+                value=int(qtd_default_mat),
+                key=f"qtd_{emb}",
+                step=1,
+                help="Quantidade total deste material usada para o lote completo.",
             )
             materiais_escolhidos.append(
                 {"nome": emb, "preco_unit": preco_emb, "qtd": qtd_mat}
@@ -444,8 +452,13 @@ if menu == "Calculadora":
       custo_energia_unit = custo_energia_total / qtd_pecas_mesa
       custo_maquina_unit = custo_maquina_total / qtd_pecas_mesa
 
-      # Correção: O custo unitário do material extra é (preço unitário do material * quantidade usada por peça)
-      custo_extras_unit = sum(item["preco_unit"] * item["qtd"] for item in materiais_escolhidos)
+      # CORREÇÃO: a quantidade de embalagens/materiais é informada para o LOTE
+      # inteiro. Soma-se o custo total do lote (preço unitário * quantidade)
+      # e só depois divide-se pelo número de peças.
+      custo_extras_total_lote = sum(
+          item["preco_unit"] * item["qtd"] for item in materiais_escolhidos
+      )
+      custo_extras_unit = custo_extras_total_lote / qtd_pecas_mesa
 
       custo_mo_total = valor_hh * tempo_hh
       custo_mo_unit = custo_mo_total / qtd_pecas_mesa
@@ -485,6 +498,7 @@ if menu == "Calculadora":
               "custo_material_unit": custo_material_unit,
               "custo_energia_unit": custo_energia_unit,
               "custo_maquina_unit": custo_maquina_unit,
+              "custo_extras_unit": custo_extras_unit,
               "extras": materiais_escolhidos,
               "hh_valor": valor_hh,
               "hh_tempo": tempo_hh,
@@ -538,17 +552,19 @@ if menu == "Calculadora":
 
     with st.expander("🔍 Ver Detalhamento dos Custos Unitários"):
       det = calc["detalhes"]
+      qtd_lote = det["qtd_pecas_mesa"]
       tempo_str_exp = det.get("tempo_formatado", f"{det['tempo_h']:.2f}h")
       st.write(
-          f"- **Lote na Mesa:** {det['qtd_pecas_mesa']} peça(s) impressas juntas"
+          f"- **Lote na Mesa:** {qtd_lote} peça(s) impressas juntas"
       )
       st.write(f"- **Impressora usada:** {det['impressora']}")
       st.write(f"- **Tempo Total da Mesa:** {tempo_str_exp}")
       st.write(f"- **Peso Total de Filamento no Lote:** {det['peso_total_g']}g")
       for fil_u in det["filamentos_usados"]:
         custo_f_lote = (fil_u['preco_kg'] / 1000) * fil_u['gramas']
+        # "R\\$" evita que o Streamlit interprete dois "$" como fórmula LaTeX
         st.write(
-            f"  - {fil_u['nome']} ({fil_u['gramas']}g): R$ {custo_f_lote:.2f} total (R$ {custo_f_lote / det['qtd_pecas_mesa']:.2f} unit.)"
+            f"  - {fil_u['nome']} ({fil_u['gramas']}g): R\\$ {custo_f_lote:.2f} total (R\\$ {custo_f_lote / qtd_lote:.2f} unit.)"
         )
       st.write(
           f"- **Filamento por peça (Unitário):** R$ {det['custo_material_unit']:.2f}"
@@ -563,12 +579,13 @@ if menu == "Calculadora":
       hh_t = det.get('hh_tempo', 0)
       hh_v = det.get('hh_valor', 20)
       c_mo = det.get('custo_mo_unit', 0)
-      st.text(f"- Mão de Obra: {hh_t}h a R$ {hh_v:.2f}/h (R$ {c_mo:.2f} unit.)")
+      st.write(f"- **Mão de Obra:** {hh_t}h a R\\$ {hh_v:.2f}/h (R\\$ {c_mo:.2f} unit.)")
 
       for ext in det["extras"]:
-        custo_ext_unitario = ext['preco_unit'] * ext['qtd']
+        custo_ext_lote = ext['preco_unit'] * ext['qtd']
+        custo_ext_unitario = custo_ext_lote / qtd_lote
         st.write(
-            f"- **{ext['nome']} ({ext['qtd']}x):** R$ {custo_ext_unitario:.2f} por peça"
+            f"- **{ext['nome']} ({ext['qtd']}x no lote):** R\\$ {custo_ext_lote:.2f} total (R\\$ {custo_ext_unitario:.2f} por peça)"
         )
       st.write(
           f"- **Comissão do Site ({calc['taxa_comissao_pct']}%):** R$ {preco_definido * taxa_com_dec:.2f}"
@@ -789,25 +806,29 @@ elif menu == "Produtos":
               f" {prod.get('preco_calculado', 0.0):.2f} ({prod.get('lucro_calc_pct', 0.0):.0f}% de lucro)"
           )
           det_prod = prod["detalhes"]
+          qtd_lote_prod = det_prod.get("qtd_pecas_mesa", 1)
           tempo_str = det_prod.get(
               "tempo_formatado", f"{det_prod['tempo_h']:.2f}h"
           )
           st.write(
               f"**Impressora:** {det_prod['impressora']} | **Lote na Mesa:**"
-              f" {det_prod.get('qtd_pecas_mesa', 1)} un | **Tempo:** {tempo_str}"
+              f" {qtd_lote_prod} un | **Tempo:** {tempo_str}"
           )
           
           hh_t_prod = det_prod.get('hh_tempo', 0)
           hh_v_prod = det_prod.get('hh_valor', 20)
           c_mo_prod = det_prod.get('custo_mo_unit', 0)
-          st.text(f"Mão de Obra: {hh_t_prod}h a R$ {hh_v_prod:.2f}/h (R$ {c_mo_prod:.2f} unit.)")
+          st.write(f"**Mão de Obra:** {hh_t_prod}h a R\\$ {hh_v_prod:.2f}/h (R\\$ {c_mo_prod:.2f} unit.)")
           
           extras_lista = det_prod.get("extras", [])
           if extras_lista:
-            st.write("**Materiais Extras / Embalagens Utilizados:**")
+            st.write("**Materiais Extras / Embalagens Utilizados (no lote):**")
             for ext in extras_lista:
-              custo_ext_total = ext['preco_unit'] * ext['qtd']
-              st.write(f"- {ext['nome']}: {ext['qtd']} un (R$ {ext['preco_unit']:.2f} cada) = R$ {custo_ext_total:.2f} unitário")
+              custo_ext_lote = ext['preco_unit'] * ext['qtd']
+              custo_ext_unit = custo_ext_lote / qtd_lote_prod
+              st.write(
+                  f"- {ext['nome']}: {ext['qtd']} un (R\\$ {ext['preco_unit']:.2f} cada) = R\\$ {custo_ext_lote:.2f} no lote (R\\$ {custo_ext_unit:.2f} por peça)"
+              )
           else:
             st.write("**Materiais Extras / Embalagens:** Nenhum extra selecionado.")
 

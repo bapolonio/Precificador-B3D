@@ -1,1 +1,333 @@
-
+{
+    "filamentos": {
+        "PETG": {
+            "marca": "Masterprint",
+            "preco": 80.0
+        },
+        "PLA Silk": {
+            "marca": "Voolt 3D",
+            "preco": 122.0
+        },
+        "PLA Velvet": {
+            "marca": "Voolt 3D",
+            "preco": 118.0
+        },
+        "PLA Termocrômico": {
+            "marca": "Voolt 3D",
+            "preco": 179.0
+        },
+        "PLA Sólido": {
+            "marca": "Voolt 3D",
+            "preco": 130.0
+        },
+        "ABS": {
+            "marca": "Masterprint",
+            "preco": 90.0
+        }
+    },
+    "impressoras": {
+        "Bambu Lab A1": {
+            "depreciacao": 0.8,
+            "consumo": 150.0
+        },
+        "Bambu Lab P2S": {
+            "depreciacao": 1.0,
+            "consumo": 200.0
+        }
+    },
+    "kw_h": 0.9,
+    "embalagens": {
+        "Caixa Grande 35 x 25 x 20 cm": 4.6,
+        "Imã 6 x 3 mm": 1.14,
+        "Primer Transparente Spray 25ml": 2.3,
+        "Saco Adesivado 30 x 40 cm": 0.5,
+        "Saco Adesivado 10 x 15 cm": 0.05,
+        "Saco Adesivado 8 x 12 cm": 0.04,
+        "Sacola Preta B3D 30 x 40 cm": 0.6,
+        "Papel Triplex Branco 300g A3": 1.13,
+        "Adesivo Vinil Transparente A4": 1.48,
+        "Adesivo Vinil Transparente Holográfico A4": 1.48,
+        "Argola Chaveiro Prata": 0.48,
+        "Imã 8 x 2 mm": 0.77,
+        "Imã 4 x 2 mm": 0.57,
+        "Acetona 10ml": 1.0,
+        "Pingente Seda Tassel": 0.38,
+        "Saco Zip Transparente Fundo Branco 10,5 x 15 cm": 0.37,
+        "Saco Zip Transparente Fundo Branco 9 x 13 cm": 0.35,
+        "Saco Zip Transparente Fundo Branco 7 x 10 cm": 0.32,
+        "Saco Zip Fosco Ziper Preto 18 x 25 cm": 0.8,
+        "Saco Zip Fosco Ziper Preto 15 x 20 cm": 0.72
+    },
+    "produtos_salvos": [
+        {
+            "titulo": "Chaveiro Huntrix Plano Rumi",
+            "sku": "B3SET0001",
+            "categoria": "Organização & Setup",
+            "status": "Ativo",
+            "preco_definido": 15.0,
+            "lucro_real_pct": 217.3095602996093,
+            "lucro_real_reais": 10.0673,
+            "custo": 4.6327,
+            "preco_calculado": 9.454489795918366,
+            "lucro_calc_pct": 100.0,
+            "detalhes": {
+                "impressora": "Bambu Lab P2S",
+                "filamentos_usados": [
+                    {
+                        "nome": "PETG",
+                        "preco_kg": 80.0,
+                        "gramas": 126.33
+                    }
+                ],
+                "qtd_pecas_mesa": 12,
+                "peso_total_g": 126.33,
+                "tempo_h": 11.7,
+                "tempo_formatado": "11h 41min",
+                "custo_material_unit": 0.8422000000000001,
+                "custo_energia_unit": 0.1755,
+                "custo_maquina_unit": 0.975,
+                "custo_extras_unit": 0.9733333333333333,
+                "extras": [
+                    {
+                        "nome": "Adesivo Vinil Transparente Holográfico A4",
+                        "preco_unit": 1.48,
+                        "qtd": 1
+                    },
+                    {
+                        "nome": "Argola Chaveiro Prata",
+                        "preco_unit": 0.48,
+                        "qtd": 12
+                    },
+                    {
+                        "nome": "Saco Zip Transparente Fundo Branco 10,5 x 15 cm",
+                        "preco_unit": 0.37,
+                        "qtd": 12
+                    }
+                ],
+                "hh_valor": 20.0,
+                "hh_tempo": 1.0,
+                "custo_mo_unit": 1.6666666666666667
+            }
+        },
+        {
+            "titulo": "Chaveiro Huntrix Plano Zoey",
+            "sku": "B3SET0002",
+            "categoria": "Organização & Setup",
+            "status": "Ativo",
+            "preco_definido": 15.0,
+            "lucro_real_pct": 232.73936548137178,
+            "lucro_real_reais": 10.282127777777777,
+            "custo": 4.417872222222222,
+            "preco_calculado": 9.016065759637188,
+            "lucro_calc_pct": 100.0,
+            "detalhes": {
+                "impressora": "Bambu Lab P2S",
+                "filamentos_usados": [
+                    {
+                        "nome": "PETG",
+                        "preco_kg": 80.0,
+                        "gramas": 121.21
+                    }
+                ],
+                "qtd_pecas_mesa": 12,
+                "peso_total_g": 121.21,
+                "tempo_h": 11.116666666666667,
+                "tempo_formatado": "11h 7min",
+                "custo_material_unit": 0.8080666666666666,
+                "custo_energia_unit": 0.16675000000000004,
+                "custo_maquina_unit": 0.9263888888888889,
+                "custo_extras_unit": 0.85,
+                "extras": [
+                    {
+                        "nome": "Argola Chaveiro Prata",
+                        "preco_unit": 0.48,
+                        "qtd": 12
+                    },
+                    {
+                        "nome": "Saco Zip Transparente Fundo Branco 10,5 x 15 cm",
+                        "preco_unit": 0.37,
+                        "qtd": 12
+                    }
+                ],
+                "hh_valor": 20.0,
+                "hh_tempo": 1.0,
+                "custo_mo_unit": 1.6666666666666667
+            }
+        },
+        {
+            "titulo": "Chaveiro Huntrix Plano Mira",
+            "sku": "B3SET0003",
+            "categoria": "Organização & Setup",
+            "status": "Ativo",
+            "preco_definido": 15.0,
+            "lucro_real_pct": 163.61487122622756,
+            "lucro_real_reais": 9.123683333333332,
+            "custo": 5.576316666666667,
+            "preco_calculado": 11.380238095238097,
+            "lucro_calc_pct": 100.0,
+            "detalhes": {
+                "impressora": "Bambu Lab P2S",
+                "filamentos_usados": [
+                    {
+                        "nome": "PETG",
+                        "preco_kg": 80.0,
+                        "gramas": 101.19
+                    }
+                ],
+                "qtd_pecas_mesa": 8,
+                "peso_total_g": 101.19,
+                "tempo_h": 8.233333333333333,
+                "tempo_formatado": "8h 13min",
+                "custo_material_unit": 1.0119,
+                "custo_energia_unit": 0.18525,
+                "custo_maquina_unit": 1.0291666666666666,
+                "custo_extras_unit": 0.85,
+                "extras": [
+                    {
+                        "nome": "Argola Chaveiro Prata",
+                        "preco_unit": 0.48,
+                        "qtd": 8
+                    },
+                    {
+                        "nome": "Saco Zip Transparente Fundo Branco 10,5 x 15 cm",
+                        "preco_unit": 0.37,
+                        "qtd": 8
+                    }
+                ],
+                "hh_valor": 20.0,
+                "hh_tempo": 1.0,
+                "custo_mo_unit": 2.5
+            }
+        },
+        {
+            "titulo": "Chaveiro Logo Huntrix",
+            "sku": "B3SET0004",
+            "categoria": "Organização & Setup",
+            "status": "Ativo",
+            "preco_definido": 8.0,
+            "lucro_real_pct": 397.81436025575067,
+            "lucro_real_reais": 6.2651157407407405,
+            "custo": 1.5748842592592593,
+            "preco_calculado": 3.214049508692366,
+            "lucro_calc_pct": 100.0,
+            "detalhes": {
+                "impressora": "Bambu Lab A1",
+                "filamentos_usados": [
+                    {
+                        "nome": "PETG",
+                        "preco_kg": 80.0,
+                        "gramas": 115.2
+                    }
+                ],
+                "qtd_pecas_mesa": 18,
+                "peso_total_g": 115.2,
+                "tempo_h": 4.483333333333333,
+                "tempo_formatado": "4h 29min",
+                "custo_material_unit": 0.512,
+                "custo_energia_unit": 0.033624999999999995,
+                "custo_maquina_unit": 0.19925925925925927,
+                "custo_extras_unit": 0.8300000000000001,
+                "extras": [
+                    {
+                        "nome": "Argola Chaveiro Prata",
+                        "preco_unit": 0.48,
+                        "qtd": 18
+                    },
+                    {
+                        "nome": "Saco Zip Transparente Fundo Branco 9 x 13 cm",
+                        "preco_unit": 0.35,
+                        "qtd": 18
+                    }
+                ],
+                "hh_valor": 20.0,
+                "hh_tempo": 0.0,
+                "custo_mo_unit": 0.0
+            }
+        },
+        {
+            "titulo": "Porta Celular Fuselagem 50 un",
+            "sku": "B3SET0005",
+            "categoria": "Organização & Setup",
+            "status": "Ativo",
+            "preco_definido": 52.0,
+            "lucro_real_pct": 127.78911319659933,
+            "lucro_real_reais": 28.588430400000004,
+            "custo": 22.371569599999997,
+            "preco_calculado": 45.656264489795916,
+            "lucro_calc_pct": 100.0,
+            "detalhes": {
+                "impressora": "Bambu Lab A1",
+                "filamentos_usados": [
+                    {
+                        "nome": "PLA Velvet",
+                        "preco_kg": 118.0,
+                        "gramas": 4250.11
+                    }
+                ],
+                "qtd_pecas_mesa": 50,
+                "peso_total_g": 4250.11,
+                "tempo_h": 431.3,
+                "tempo_formatado": "431h 18min",
+                "custo_material_unit": 10.030259599999999,
+                "custo_energia_unit": 1.16451,
+                "custo_maquina_unit": 6.9008,
+                "custo_extras_unit": 0.27599999999999997,
+                "extras": [
+                    {
+                        "nome": "Caixa Grande 35 x 25 x 20 cm",
+                        "preco_unit": 4.6,
+                        "qtd": 3
+                    }
+                ],
+                "hh_valor": 20.0,
+                "hh_tempo": 10.0,
+                "custo_mo_unit": 4.0
+            }
+        },
+        {
+            "titulo": "Chaveiro Huntrix Derpy Articulado",
+            "sku": "B3SET0006",
+            "categoria": "Organização & Setup",
+            "status": "Ativo",
+            "preco_definido": 25.0,
+            "lucro_real_pct": 230.50245366220702,
+            "lucro_real_reais": 17.087044444444444,
+            "custo": 7.4129555555555555,
+            "preco_calculado": 15.128480725623582,
+            "lucro_calc_pct": 100.0,
+            "detalhes": {
+                "impressora": "Bambu Lab P2S",
+                "filamentos_usados": [
+                    {
+                        "nome": "PETG",
+                        "preco_kg": 80.0,
+                        "gramas": 299.52
+                    }
+                ],
+                "qtd_pecas_mesa": 9,
+                "peso_total_g": 299.52,
+                "tempo_h": 29.75,
+                "tempo_formatado": "29h 45min",
+                "custo_material_unit": 2.6624,
+                "custo_energia_unit": 0.5950000000000001,
+                "custo_maquina_unit": 3.3055555555555554,
+                "custo_extras_unit": 0.8500000000000001,
+                "extras": [
+                    {
+                        "nome": "Argola Chaveiro Prata",
+                        "preco_unit": 0.48,
+                        "qtd": 9
+                    },
+                    {
+                        "nome": "Saco Zip Transparente Fundo Branco 10,5 x 15 cm",
+                        "preco_unit": 0.37,
+                        "qtd": 9
+                    }
+                ],
+                "hh_valor": 20.0,
+                "hh_tempo": 0.0,
+                "custo_mo_unit": 0.0
+            }
+        }
+    ]
+}

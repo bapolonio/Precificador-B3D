@@ -100,13 +100,15 @@ def conectar_gsheets():
     else:
       gc = gspread.service_account(filename="credentials.json")
 
-    sh = gc.open("Banco_B3D")
+    # Nome correto da planilha no Google Drive
+    sh = gc.open("Banco_Precificação B3D")
     try:
       worksheet = sh.worksheet("Dados")
     except gspread.exceptions.WorksheetNotFound:
       worksheet = sh.add_worksheet(title="Dados", rows=100, cols=20)
     return worksheet
-  except Exception:
+  except Exception as e:
+    st.error(f"Erro ao conectar com o Google Sheets: {e}")
     return None
 
 
@@ -161,9 +163,11 @@ def salvar_dados(dados):
     sheet = conectar_gsheets()
     if sheet:
       json_str = json.dumps(dados, ensure_ascii=False)
-      sheet.update_cell(1, 1, json_str)
+      sheet.update(values=[[json_str]], range_name="A1")
+      return True
   except Exception as e:
     st.error(f"Erro ao salvar no Google Sheets: {e}")
+  return False
 
 
 dados = carregar_dados()
@@ -184,7 +188,7 @@ menu_opcoes = [
 ]
 menu = st.sidebar.radio("MenuPrincipal", menu_opcoes, label_visibility="collapsed")
 
-# --- FERRAMENTA TEMPORÁRIA PARA RESTAURAR BACKUP ---
+# --- FERRAMENTA PARA RESTAURAR BACKUP ---
 st.sidebar.divider()
 st.sidebar.subheader("🔄 Restaurar Backup")
 arquivo_submetido = st.sidebar.file_uploader(
@@ -194,13 +198,14 @@ if arquivo_submetido is not None:
   try:
     conteudo_carregado = json.load(arquivo_submetido)
     if "produtos_salvos" in conteudo_carregado:
-      salvar_dados(conteudo_carregado)
-      st.sidebar.success(
-          "Backup importado com sucesso para o Google Sheets! Atualize a"
-          " página."
-      )
-      if st.sidebar.button("Recarregar App"):
-        st.rerun()
+      sucesso = salvar_dados(conteudo_carregado)
+      if sucesso:
+        st.sidebar.success(
+            "Backup enviado para o Google Sheets com sucesso! Clique abaixo"
+            " para recarregar."
+        )
+        if st.sidebar.button("🔄 Atualizar Página Agora"):
+          st.rerun()
     else:
       st.sidebar.error("O arquivo JSON não parece ser um backup válido.")
   except Exception as e:

@@ -70,7 +70,6 @@ st.markdown(
         border-color: #2BDE55 !important;
     }
 
-    /* Estilo para pintar APENAS o cabeçalho (barra principal) do expansor de produtos inativos com vermelho claro e sutil */
     .produto-inativo-expander details summary {
         background-color: rgba(255, 82, 82, 0.15) !important;
         border: 1px solid rgba(255, 82, 82, 0.35) !important;
@@ -184,6 +183,28 @@ menu_opcoes = [
     "Produtos",
 ]
 menu = st.sidebar.radio("MenuPrincipal", menu_opcoes, label_visibility="collapsed")
+
+# --- FERRAMENTA TEMPORÁRIA PARA RESTAURAR BACKUP ---
+st.sidebar.divider()
+st.sidebar.subheader("🔄 Restaurar Backup")
+arquivo_submetido = st.sidebar.file_uploader(
+    "Enviar arquivo JSON de backup", type=["json"]
+)
+if arquivo_submetido is not None:
+  try:
+    conteudo_carregado = json.load(arquivo_submetido)
+    if "produtos_salvos" in conteudo_carregado:
+      salvar_dados(conteudo_carregado)
+      st.sidebar.success(
+          "Backup importado com sucesso para o Google Sheets! Atualize a"
+          " página."
+      )
+      if st.sidebar.button("Recarregar App"):
+        st.rerun()
+    else:
+      st.sidebar.error("O arquivo JSON não parece ser um backup válido.")
+  except Exception as e:
+    st.sidebar.error(f"Erro ao ler arquivo: {e}")
 
 
 def gerar_proximo_sku(categoria, produtos_salvos):

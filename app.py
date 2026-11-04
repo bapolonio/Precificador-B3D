@@ -1,8 +1,8 @@
 import json
 import os
-import gspread
 import pandas as pd
 import streamlit as st
+from streamlit_gsheets import GSheetsConnection
 
 # Configuração da página e layout
 st.set_page_config(page_title="Precificador B3D", page_icon="💲", layout="wide")
@@ -91,27 +91,7 @@ CATEGORIAS_DICT = {
 CATEGORIAS_PRODUTOS = list(CATEGORIAS_DICT.keys())
 
 
-# --- CONEXÃO COM O GOOGLE SHEETS VIA GSPREAD ---
-def conectar_gsheets():
-  try:
-    if "gcp_service_account" in st.secrets:
-      cred_dict = dict(st.secrets["gcp_service_account"])
-      gc = gspread.service_account_from_dict(cred_dict)
-    else:
-      gc = gspread.service_account(filename="credentials.json")
-
-    # Nome correto da planilha no Google Drive
-    sh = gc.open("Banco_Precificação B3D")
-    try:
-      worksheet = sh.worksheet("Dados")
-    except gspread.exceptions.WorksheetNotFound:
-      worksheet = sh.add_worksheet(title="Dados", rows=100, cols=20)
-    return worksheet
-  except Exception as e:
-    st.error(f"Erro ao conectar com o Google Sheets: {e}")
-    return None
-
-
+# --- CONEXÃO COM O GOOGLE SHEETS VIA STREAMLIT-GSHEETS ---
 def carregar_dados():
   dados_padrao = {
       "filamentos": {
@@ -130,10 +110,12 @@ def carregar_dados():
   }
 
   try:
-    sheet = conectar_gsheets()
-    if sheet:
-      conteudo_json = sheet.cell(1, 1).value
-      if conteudo_json and str(conteudo_json).strip():
+    conn = st.connection("gsheets", type=GSheetsConnection)
+    df = conn.read(worksheet="Dados", ttl=0)
+
+    if not df.empty and "json_dados" in df.columns:
+      conteudo_json = df["json_dados"].iloc[0]
+      if pd.notna(conteudo_json) and str(conteudo_json).strip():
         dados = json.loads(str(conteudo_json))
 
         for p in dados.get("produtos_salvos", []):
@@ -160,11 +142,11 @@ def carregar_dados():
 
 def salvar_dados(dados):
   try:
-    sheet = conectar_gsheets()
-    if sheet:
-      json_str = json.dumps(dados, ensure_ascii=False)
-      sheet.update(values=[[json_str]], range_name="A1")
-      return True
+    conn = st.connection("gsheets", type=GSheetsConnection)
+    json_str = json.dumps(dados, ensure_ascii=False)
+    df_novo = pd.DataFrame({"json_dados": [json_str]})
+    conn.update(worksheet="Dados", data=df_novo)
+    return True
   except Exception as e:
     st.error(f"Erro ao salvar no Google Sheets: {e}")
   return False

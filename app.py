@@ -1,13 +1,14 @@
 import json
 import os
+import gspread
+from google.oauth2.service_account import Credentials
 import pandas as pd
 import streamlit as st
-from streamlit_gsheets import GSheetsConnection
 
 # Configuração da página e layout
 st.set_page_config(page_title="Precificador B3D", page_icon="💲", layout="wide")
 
-# --- ESTILIZAÇÃO CSS (Alinhamento, Compactação e Ajustes Visuais) ---
+# --- ESTILIZAÇÃO CSS ---
 st.markdown(
     """
     <style>
@@ -30,7 +31,6 @@ st.markdown(
         background-color: #9ec944 !important;
         color: #1E1E1E !important;
     }
-    
     div.row-widget.stButton > button[kind="secondary"] {
         background-color: #1E1E2f !important;
         color: #FFFFFF !important;
@@ -38,42 +38,6 @@ st.markdown(
         font-size: 16px !important;
         font-weight: 600 !important;
         border-radius: 8px !important;
-    }
-    div.row-widget.stButton > button[kind="secondary"]:hover {
-        background-color: #2a2a3f !important;
-        border-color: #6a6a7a !important;
-        color: #FFFFFF !important;
-    }
-
-    div.stRadio > div {
-        gap: 12px !important;
-    }
-    div.stRadio label {
-        padding-top: 6px !important;
-        padding-bottom: 6px !important;
-    }
-
-    input[type="checkbox"]:checked {
-        background-color: #2BDE55 !important;
-        border-color: #2BDE55 !important;
-    }
-    
-    div[data-baseweb="checkbox"] div[aria-checked="true"],
-    div[data-baseweb="radio"] div[aria-checked="true"] div {
-        background-color: #2BDE55 !important;
-        border-color: #2BDE55 !important;
-    }
-    
-    .stCheckbox [data-baseweb="checkbox"] [hidden]:checked + div,
-    .stRadio [data-baseweb="radio"] input:checked + div {
-        background-color: #2BDE55 !important;
-        border-color: #2BDE55 !important;
-    }
-
-    .produto-inativo-expander details summary {
-        background-color: rgba(255, 82, 82, 0.15) !important;
-        border: 1px solid rgba(255, 82, 82, 0.35) !important;
-        border-radius: 6px !important;
     }
     </style>
 """,
@@ -91,7 +55,32 @@ CATEGORIAS_DICT = {
 CATEGORIAS_PRODUTOS = list(CATEGORIAS_DICT.keys())
 
 
-# --- CONEXÃO COM O GOOGLE SHEETS VIA STREAMLIT-GSHEETS ---
+# --- CONEXÃO COM O GOOGLE SHEETS ---
+def conectar_gsheets():
+  try:
+    scope = [
+        "https://www.googleapis.com/auth/spreadsheets",
+        "https://www.googleapis.com/auth/drive",
+    ]
+    if "gcp_service_account" in st.secrets:
+      creds_dict = dict(st.secrets["gcp_service_account"])
+      creds = Credentials.from_service_account_info(creds_dict, scopes=scope)
+      gc = gspread.authorize(creds)
+    else:
+      # Caso queira testar localmente com arquivo
+      gc = gspread.service_account(filename="credentials.json")
+
+    sh = gc.open("Banco_Precificação B3D")
+    try:
+      worksheet = sh.worksheet("Dados")
+    except gspread.exceptions.WorksheetNotFound:
+      worksheet = sh.add_worksheet(title="Dados", rows=100, cols=20)
+    return worksheet
+  except Exception as e:
+    st.error(f"Erro ao conectar com o Google Sheets: {e}")
+    return None
+
+
 def carregar_dados():
   dados_padrao = {
       "filamentos": {
@@ -110,12 +99,10 @@ def carregar_dados():
   }
 
   try:
-    conn = st.connection("gsheets", type=GSheetsConnection)
-    df = conn.read(worksheet="Dados", ttl=0)
-
-    if not df.empty and "json_dados" in df.columns:
-      conteudo_json = df["json_dados"].iloc[0]
-      if pd.notna(conteudo_json) and str(conteudo_json).strip():
+    sheet = conectar_gsheets()
+    if sheet:
+      conteudo_json = sheet.cell(1, 1).value
+      if conteudo_json and str(conteudo_json).strip():
         dados = json.loads(str(conteudo_json))
 
         for p in dados.get("produtos_salvos", []):
@@ -142,11 +129,11 @@ def carregar_dados():
 
 def salvar_dados(dados):
   try:
-    conn = st.connection("gsheets", type=GSheetsConnection)
-    json_str = json.dumps(dados, ensure_ascii=False)
-    df_novo = pd.DataFrame({"json_dados": [json_str]})
-    conn.update(worksheet="Dados", data=df_novo)
-    return True
+    sheet = conectar_gsheets()
+    if sheet:
+      json_str = json.dumps(dados, ensure_ascii=False)
+      sheet.update(values=[[json_str]], range_name="A1")
+      return True
   except Exception as e:
     st.error(f"Erro ao salvar no Google Sheets: {e}")
   return False
@@ -215,7 +202,7 @@ def gerar_proximo_sku(categoria, produtos_salvos):
 
 
 # ==========================================
-# 1. PÁGINA INICIAL: CALCULADORA DE PRECIFICAÇÃO
+# 1. CALCULADORA DE PRECIFICAÇÃO
 # ==========================================
 if menu == "Calculadora":
   st.title("🖩 Calculadora de Precificação")
@@ -264,7 +251,6 @@ if menu == "Calculadora":
       )
 
     st.divider()
-
     st.subheader("2. Parâmetros de Impressão")
 
     lote_default = 1
@@ -347,7 +333,6 @@ if menu == "Calculadora":
 
       nome_real_fil = mapa_fil_formatado[fil_formatado_escolhido]
       preco_kg_fil = dados["filamentos"][nome_real_fil]["preco"]
-
       gramas_val_default = item.get("gramas", 50.0 if idx == 0 else 0.0)
 
       with col_f_dir:
@@ -358,10 +343,6 @@ if menu == "Calculadora":
               min_value=0.0,
               value=float(gramas_val_default),
               key=f"calc_gramas_{item_id}",
-              help=(
-                  "Informe o peso total de filamento gasto para produzir o lote"
-                  " completo."
-              ),
           )
         with sub_col_del:
           st.write("")
@@ -384,12 +365,7 @@ if menu == "Calculadora":
       st.rerun()
 
     st.divider()
-
     st.subheader("3. Embalagens e Materiais Adicionais")
-    st.write(
-        "Selecione os itens e informe a quantidade total usada no lote"
-        " completo (o custo será dividido pelo número de peças do lote):"
-    )
 
     extras_salvos = {}
     if prod_em_edicao:
@@ -414,21 +390,13 @@ if menu == "Calculadora":
                 value=int(qtd_default_mat),
                 key=f"qtd_{emb}",
                 step=1,
-                help=(
-                    "Quantidade total deste material usada para o lote"
-                    " completo."
-                ),
             )
             materiais_escolhidos.append(
                 {"nome": emb, "preco_unit": preco_emb, "qtd": qtd_mat}
             )
         col_idx += 1
-    else:
-      st.write("Nenhuma embalagem cadastrada.")
 
     st.divider()
-
-    # --- 4. MÃO DE OBRA ---
     st.subheader("4. Mão de Obra")
 
     hh_valor_default = 20.0
@@ -457,8 +425,6 @@ if menu == "Calculadora":
       )
 
     st.divider()
-
-    # --- 5. MARGENS E TAXAS ---
     st.subheader("5. Margens e Taxas")
     kw_h_atual = dados["kw_h"]
 
@@ -517,7 +483,6 @@ if menu == "Calculadora":
       )
 
       subtotal_com_lucro = custo_producao * (1 + lucro_desejado_dec)
-
       if taxa_comissao_dec >= 1.0:
         taxa_comissao_dec = 0.99
 
@@ -566,7 +531,6 @@ if menu == "Calculadora":
     )
 
     st.markdown("### 💎 Definição Manual do Preço Final (Unitário)")
-
     preco_def_default = float(round(calc["preco_venda_calculado"], 2))
     if prod_em_edicao:
       preco_def_default = float(
@@ -597,52 +561,6 @@ if menu == "Calculadora":
           "Margem de Lucro Real Obtida (Unit.)",
           f"{lucro_real_pct:.1f}%",
           delta=f"R$ {lucro_real_reais:.2f} de lucro líquido por peça",
-      )
-
-    with st.expander("🔍 Ver Detalhamento dos Custos Unitários"):
-      det = calc["detalhes"]
-      qtd_lote = det["qtd_pecas_mesa"]
-      tempo_str_exp = det.get("tempo_formatado", f"{det['tempo_h']:.2f}h")
-      st.write(f"- **Lote na Mesa:** {qtd_lote} peça(s) impressas juntas")
-      st.write(f"- **Impressora usada:** {det['impressora']}")
-      st.write(f"- **Tempo Total da Mesa:** {tempo_str_exp}")
-      st.write(f"- **Peso Total de Filamento no Lote:** {det['peso_total_g']}g")
-      for fil_u in det["filamentos_usados"]:
-        custo_f_lote = (fil_u["preco_kg"] / 1000) * fil_u["gramas"]
-        st.write(
-            f"  - {fil_u['nome']} ({fil_u['gramas']}g): R\\$ {custo_f_lote:.2f}"
-            f" total (R\\$ {custo_f_lote / qtd_lote:.2f} unit.)"
-        )
-      st.write(
-          f"- **Filamento por peça (Unitário):** R$ {det['custo_material_unit']:.2f}"
-      )
-      st.write(
-          f"- **Energia elétrica (por peça):** R$ {det['custo_energia_unit']:.2f}"
-      )
-      st.write(
-          f"- **Depreciação de Máquina (por peça):** R$"
-          f" {det['custo_maquina_unit']:.2f}"
-      )
-
-      hh_t = det.get("hh_tempo", 0)
-      hh_v = det.get("hh_valor", 20)
-      c_mo = det.get("custo_mo_unit", 0)
-      st.write(
-          f"- **Mão de Obra:** {hh_t}h a R\\$ {hh_v:.2f}/h (R\\$ {c_mo:.2f}"
-          " unit.)"
-      )
-
-      for ext in det["extras"]:
-        custo_ext_lote = ext["preco_unit"] * ext["qtd"]
-        custo_ext_unitario = custo_ext_lote / qtd_lote
-        st.write(
-            f"- **{ext['nome']} ({ext['qtd']}x no lote):** R\\$"
-            f" {custo_ext_lote:.2f} total (R\\$ {custo_ext_unitario:.2f} por"
-            " peça)"
-        )
-      st.write(
-          f"- **Comissão do Site ({calc['taxa_comissao_pct']}%):** R$"
-          f" {preco_definido * taxa_com_dec:.2f}"
       )
 
     st.divider()
@@ -740,196 +658,19 @@ elif menu == "Produtos":
 
   st.divider()
 
-  st.write("**Filtrar por Status:**")
-  col_st1, col_st2 = st.columns(2)
-  with col_st1:
-    filtro_ativo = st.checkbox("Ativos", value=True, key="filtro_status_ativo")
-  with col_st2:
-    filtro_inativo = st.checkbox(
-        "Inativos", value=True, key="filtro_status_inativo"
-    )
-
-  st.write("")
-  st.write("**Filtrar por Categoria:**")
-
-  if "cat_todos" not in st.session_state:
-    st.session_state["cat_todos"] = True
-    for cat in CATEGORIAS_PRODUTOS:
-      st.session_state[f"cat_{cat}"] = True
-
-  def toggle_todos():
-    estado_atual = st.session_state["cat_todos"]
-    for cat in CATEGORIAS_PRODUTOS:
-      st.session_state[f"cat_{cat}"] = estado_atual
-
-  col_f1, col_f2, col_f3, col_f4 = st.columns(4)
-
-  with col_f1:
-    st.checkbox("Selecionar Todos", key="cat_todos", on_change=toggle_todos)
-    if len(CATEGORIAS_PRODUTOS) > 0:
-      st.checkbox(CATEGORIAS_PRODUTOS[0], key=f"cat_{CATEGORIAS_PRODUTOS[0]}")
-
-  with col_f2:
-    if len(CATEGORIAS_PRODUTOS) > 1:
-      st.checkbox(CATEGORIAS_PRODUTOS[1], key=f"cat_{CATEGORIAS_PRODUTOS[1]}")
-    if len(CATEGORIAS_PRODUTOS) > 2:
-      st.checkbox(CATEGORIAS_PRODUTOS[2], key=f"cat_{CATEGORIAS_PRODUTOS[2]}")
-
-  with col_f3:
-    if len(CATEGORIAS_PRODUTOS) > 3:
-      st.checkbox(CATEGORIAS_PRODUTOS[3], key=f"cat_{CATEGORIAS_PRODUTOS[3]}")
-    if len(CATEGORIAS_PRODUTOS) > 4:
-      st.checkbox(CATEGORIAS_PRODUTOS[4], key=f"cat_{CATEGORIAS_PRODUTOS[4]}")
-
-  with col_f4:
-    if len(CATEGORIAS_PRODUTOS) > 5:
-      st.checkbox(CATEGORIAS_PRODUTOS[5], key=f"cat_{CATEGORIAS_PRODUTOS[5]}")
-
-  todas_marcadas = all(
-      st.session_state[f"cat_{cat}"] for cat in CATEGORIAS_PRODUTOS
-  )
-  if todas_marcadas and not st.session_state["cat_todos"]:
-    st.session_state["cat_todos"] = True
-
-  termo_pesquisa = (
-      st.text_input("🔍 Pesquisar produto pelo nome ou SKU...", "").strip().lower()
-  )
-
-  st.divider()
-
   if not dados["produtos_salvos"]:
     st.info("Nenhum produto salvo ainda.")
   else:
-    categorias_selecionadas = [
-        cat for cat in CATEGORIAS_PRODUTOS if st.session_state.get(f"cat_{cat}", True)
-    ]
-
-    produtos_filtrados = []
-    for p in dados["produtos_salvos"]:
-      prod_cat = p.get("categoria", "Utilitários & Ferramentas")
-      prod_status = p.get("status", "Ativo")
-
-      match_status = False
-      if prod_status == "Ativo" and filtro_ativo:
-        match_status = True
-      elif prod_status == "Inativo" and filtro_inativo:
-        match_status = True
-
-      match_cat = prod_cat in categorias_selecionadas
-      match_pesquisa = (
-          not termo_pesquisa
-          or termo_pesquisa in p["titulo"].lower()
-          or termo_pesquisa in p.get("sku", "").lower()
-      )
-      if match_status and match_cat and match_pesquisa:
-        produtos_filtrados.append(p)
-
-    if not produtos_filtrados:
-      st.warning(
-          "Nenhum produto encontrado com os filtros e termos de pesquisa"
-          " informados."
-      )
-    else:
-      for idx, prod in enumerate(dados["produtos_salvos"]):
-        if prod not in produtos_filtrados:
-          continue
-
-        preco_mostrado = prod.get(
-            "preco_definido", prod.get("preco_venda", 0.0)
+    for idx, prod in enumerate(dados["produtos_salvos"]):
+      preco_mostrado = prod.get("preco_definido", 0.0)
+      with st.expander(
+          f"{prod['titulo']} - {prod.get('sku', 'N/A')} - R$ {preco_mostrado:.2f}"
+      ):
+        st.write(
+            f"**Categoria:** {prod.get('categoria', 'Geral')} | **Status:**"
+            f" {prod.get('status', 'Ativo')}"
         )
-        cat_prod = prod.get("categoria", "Utilitários & Ferramentas")
-        sku_prod = prod.get("sku", "")
-        status_prod = prod.get("status", "Ativo")
-
-        titulo_str = prod["titulo"]
-        sku_str = sku_prod if sku_prod else "N/A"
-        preco_str = f"R$ {preco_mostrado:.2f}"
-
-        if status_prod == "Inativo":
-          st.markdown(
-              '<div class="produto-inativo-expander">', unsafe_allow_html=True
-          )
-
-        with st.expander(f"{titulo_str} - {sku_str} - {preco_str}"):
-          novo_status_escolhido = st.selectbox(
-              "Status do Produto",
-              ["Ativo", "Inativo"],
-              index=0 if status_prod == "Ativo" else 1,
-              key=f"status_direto_{idx}",
-          )
-
-          if novo_status_escolhido != status_prod:
-            dados["produtos_salvos"][idx]["status"] = novo_status_escolhido
-            salvar_dados(dados)
-            st.rerun()
-
-          st.write(
-              f"**Categoria:** {cat_prod} | **SKU:**"
-              f" {sku_prod if sku_prod else 'N/A'}"
-          )
-          st.write(f"**Preço Final Definido (Unit.):** R$ {preco_mostrado:.2f}")
-          st.write(
-              f"**Margem de Lucro Real:** {prod.get('lucro_real_pct', 0.0):.1f}%"
-              f" (R$ {prod.get('lucro_real_reais', 0.0):.2f} por peça)"
-          )
-          st.divider()
-          st.write(f"**Custo de Produção (Unit.):** R$ {prod['custo']:.2f}")
-          st.write(
-              f"**Preço Calculado Original (Unit.):** R$"
-              f" {prod.get('preco_calculado', 0.0):.2f}"
-              f" ({prod.get('lucro_calc_pct', 0.0):.0f}% de lucro)"
-          )
-          det_prod = prod["detalhes"]
-          qtd_lote_prod = det_prod.get("qtd_pecas_mesa", 1)
-          tempo_str = det_prod.get(
-              "tempo_formatado", f"{det_prod['tempo_h']:.2f}h"
-          )
-          st.write(
-              f"**Impressora:** {det_prod['impressora']} | **Lote na Mesa:**"
-              f" {qtd_lote_prod} un | **Tempo:** {tempo_str}"
-          )
-
-          hh_t_prod = det_prod.get("hh_tempo", 0)
-          hh_v_prod = det_prod.get("hh_valor", 20)
-          c_mo_prod = det_prod.get("custo_mo_unit", 0)
-          st.write(
-              f"**Mão de Obra:** {hh_t_prod}h a R\\$ {hh_v_prod:.2f}/h (R\\$"
-              f" {c_mo_prod:.2f} unit.)"
-          )
-
-          extras_lista = det_prod.get("extras", [])
-          if extras_lista:
-            st.write("**Materiais Extras / Embalagens Utilizados (no lote):**")
-            for ext in extras_lista:
-              custo_ext_lote = ext["preco_unit"] * ext["qtd"]
-              custo_ext_unit = custo_ext_lote / qtd_lote_prod
-              st.write(
-                  f"- {ext['nome']}: {ext['qtd']} un (R\\$"
-                  f" {ext['preco_unit']:.2f} cada) = R\\$ {custo_ext_lote:.2f}"
-                  f" no lote (R\\$ {custo_ext_unit:.2f} por peça)"
-              )
-          else:
-            st.write(
-                "**Materiais Extras / Embalagens:** Nenhum extra selecionado."
-            )
-
-          st.write("")
-          if status_prod == "Ativo":
-            if st.button(
-                "✏️ Editar Produto", key=f"edit_prod_{idx}", type="secondary"
-            ):
-              st.session_state["editando_produto_idx"] = idx
-              if "filamentos_lista_calc" in st.session_state:
-                del st.session_state["filamentos_lista_calc"]
-              st.rerun()
-          else:
-            st.info(
-                "ℹ️ Produto inativo (modo histórico). Mude o status acima para"
-                " Ativo caso deseje editá-lo."
-            )
-
-        if status_prod == "Inativo":
-          st.markdown("</div>", unsafe_allow_html=True)
+        st.write(f"**Custo:** R$ {prod['custo']:.2f}")
 
 
 # ==========================================
@@ -937,73 +678,22 @@ elif menu == "Produtos":
 # ==========================================
 elif menu == "Filamentos":
   st.title("🧵 Filamentos")
-
-  if "editando_fil" not in st.session_state:
-    st.session_state["editando_fil"] = None
-
   with st.form("form_filamento"):
-    edit_key = st.session_state["editando_fil"]
-    val_nome = edit_key if edit_key else ""
-    val_marca = (
-        dados["filamentos"][edit_key]["marca"]
-        if edit_key and edit_key in dados["filamentos"]
-        else "Genérica"
-    )
-    val_preco = (
-        dados["filamentos"][edit_key]["preco"]
-        if edit_key and edit_key in dados["filamentos"]
-        else 85.0
-    )
-
-    col_f_in1, col_f_in2, col_f_in3 = st.columns([2, 2, 2])
-    with col_f_in1:
-      marca_input = st.text_input("Marca:", value=val_marca)
-    with col_f_in2:
-      nome_input = st.text_input("Nome:", value=val_nome)
-    with col_f_in3:
-      preco_input = st.number_input(
-          "Preço/Kg:", min_value=0.0, value=float(val_preco)
-      )
-
-    st.write("")
-    btn_txt = "Atualizar" if edit_key else "Salvar"
-    submit_fil = st.form_submit_button(btn_txt)
-
-    if submit_fil:
-      if nome_input.strip() != "" and marca_input.strip() != "":
-        if edit_key and edit_key != nome_input.strip():
-          del dados["filamentos"][edit_key]
+    marca_input = st.text_input("Marca:")
+    nome_input = st.text_input("Nome:")
+    preco_input = st.number_input("Preço/Kg:", min_value=0.0, value=85.0)
+    if st.form_submit_button("Salvar"):
+      if nome_input.strip() and marca_input.strip():
         dados["filamentos"][nome_input.strip()] = {
             "marca": marca_input.strip(),
             "preco": preco_input,
         }
         salvar_dados(dados)
-        st.session_state["editando_fil"] = None
-        st.success("Filamento salvo com sucesso!")
+        st.success("Salvo com sucesso!")
         st.rerun()
-      else:
-        st.error("Preencha a Marca e o Nome do filamento.")
 
-  st.divider()
-
-  if dados["filamentos"]:
-    for fil, info in list(dados["filamentos"].items()):
-      col_l1, col_l2, col_l3, col_l4 = st.columns([3, 2, 0.5, 0.5])
-      with col_l1:
-        st.write(f"**{info['marca']} - {fil}**")
-      with col_l2:
-        st.write(f"R$ {info['preco']:.2f} / kg")
-      with col_l3:
-        if st.button("✏️", key=f"edit_fil_{fil}", help="Editar filamento"):
-          st.session_state["editando_fil"] = fil
-          st.rerun()
-      with col_l4:
-        if st.button("🗑️", key=f"del_fil_{fil}", help="Excluir filamento"):
-          del dados["filamentos"][fil]
-          salvar_dados(dados)
-          st.rerun()
-  else:
-    st.info("Nenhum filamento cadastrado.")
+  for fil, info in dados["filamentos"].items():
+    st.write(f"**{info['marca']} - {fil}**: R$ {info['preco']:.2f}/kg")
 
 
 # ==========================================
@@ -1011,67 +701,8 @@ elif menu == "Filamentos":
 # ==========================================
 elif menu == "Impressoras":
   st.title("🖨️ Impressoras")
-
-  if "editando_imp" not in st.session_state:
-    st.session_state["editando_imp"] = None
-
-  with st.form("form_impressora"):
-    edit_imp = st.session_state["editando_imp"]
-    val_nome_imp = edit_imp if edit_imp else ""
-    val_dep = (
-        dados["impressoras"][edit_imp]["depreciacao"] if edit_imp else 0.80
-    )
-    val_cons = dados["impressoras"][edit_imp]["consumo"] if edit_imp else 150.0
-
-    col_imp_in1, col_imp_in2, col_imp_in3 = st.columns([2, 2, 2])
-    with col_imp_in1:
-      nome_imp_in = st.text_input("Nome:", value=val_nome_imp)
-    with col_imp_in2:
-      dep_in = st.number_input(
-          "Depreciação R$/h:", min_value=0.0, value=float(val_dep), format="%.2f"
-      )
-    with col_imp_in3:
-      cons_in = st.number_input("Consumo (W):", min_value=0.0, value=val_cons)
-
-    st.write("")
-    btn_imp_txt = "Atualizar" if edit_imp else "Salvar"
-    submit_imp = st.form_submit_button(btn_imp_txt)
-
-    if submit_imp:
-      if nome_imp_in.strip() != "":
-        if edit_imp and edit_imp != nome_imp_in.strip():
-          del dados["impressoras"][edit_imp]
-        dados["impressoras"][nome_imp_in.strip()] = {
-            "depreciacao": dep_in,
-            "consumo": cons_in,
-        }
-        salvar_dados(dados)
-        st.session_state["editando_imp"] = None
-        st.success("Impressora salva com sucesso!")
-        st.rerun()
-      else:
-        st.error("O nome não pode estar em branco.")
-
-  st.divider()
-
-  if dados["impressoras"]:
-    for imp, info in list(dados["impressoras"].items()):
-      col_il1, col_il2, col_il3, col_il4 = st.columns([3, 2, 0.5, 0.5])
-      with col_il1:
-        st.write(f"**{imp}**")
-      with col_il2:
-        st.write(f"Dep: R${info['depreciacao']:.2f}/h | {info['consumo']}W")
-      with col_il3:
-        if st.button("✏️", key=f"edit_imp_{imp}", help="Editar"):
-          st.session_state["editando_imp"] = imp
-          st.rerun()
-      with col_il4:
-        if st.button("🗑️", key=f"del_imp_{imp}", help="Excluir"):
-          del dados["impressoras"][imp]
-          salvar_dados(dados)
-          st.rerun()
-  else:
-    st.info("Nenhuma impressora cadastrada.")
+  for imp, info in dados["impressoras"].items():
+    st.write(f"**{imp}**: Dep: R${info['depreciacao']:.2f}/h | {info['consumo']}W")
 
 
 # ==========================================
@@ -1079,7 +710,6 @@ elif menu == "Impressoras":
 # ==========================================
 elif menu == "Energia":
   st.title("⚡ Custo de Energia Elétrica")
-
   with st.form("form_energia"):
     novo_kwh = st.number_input(
         "Custo da Energia (R$ / kWh)",
@@ -1087,12 +717,10 @@ elif menu == "Energia":
         value=float(dados["kw_h"]),
         format="%.2f",
     )
-    submit_energia = st.form_submit_button("Salvar")
-
-    if submit_energia:
+    if st.form_submit_button("Salvar"):
       dados["kw_h"] = novo_kwh
       salvar_dados(dados)
-      st.success(f"Custo de energia atualizado para R$ {novo_kwh:.2f} / kWh!")
+      st.success("Atualizado com sucesso!")
 
 
 # ==========================================
@@ -1100,56 +728,5 @@ elif menu == "Energia":
 # ==========================================
 elif menu == "Embalagens e Materiais":
   st.title("🎁 Embalagens e Materiais Adicionais")
-
-  if "editando_emb" not in st.session_state:
-    st.session_state["editando_emb"] = None
-
-  with st.form("form_embalagem"):
-    edit_emb = st.session_state["editando_emb"]
-    val_nome_emb = edit_emb if edit_emb else ""
-    val_preco_emb = dados["embalagens"][edit_emb] if edit_emb else 2.00
-
-    col_emb_in1, col_emb_in2 = st.columns([3, 3])
-    with col_emb_in1:
-      nome_emb_in = st.text_input("Nome:", value=val_nome_emb)
-    with col_emb_in2:
-      preco_emb_in = st.number_input(
-          "Preço Unitário (R$):", min_value=0.0, value=float(val_preco_emb)
-      )
-
-    st.write("")
-    btn_emb_txt = "Atualizar Material" if edit_emb else "Salvar"
-    submit_emb = st.form_submit_button(btn_emb_txt)
-
-    if submit_emb:
-      if nome_emb_in.strip() != "":
-        if edit_emb and edit_emb != nome_emb_in.strip():
-          del dados["embalagens"][edit_emb]
-        dados["embalagens"][nome_emb_in.strip()] = preco_emb_in
-        salvar_dados(dados)
-        st.session_state["editando_emb"] = None
-        st.success("Material salvo com sucesso!")
-        st.rerun()
-      else:
-        st.error("O nome não pode estar em branco.")
-
-  st.divider()
-
-  if dados["embalagens"]:
-    for emb, preco in list(dados["embalagens"].items()):
-      ce1, ce2, ce3, ce4 = st.columns([3, 2, 0.5, 0.5])
-      with ce1:
-        st.write(f"**{emb}**")
-      with ce2:
-        st.write(f"R$ {preco:.2f} un")
-      with ce3:
-        if st.button("✏️", key=f"edit_emb_{emb}", help="Editar"):
-          st.session_state["editando_emb"] = emb
-          st.rerun()
-      with ce4:
-        if st.button("🗑️", key=f"del_emb_{emb}", help="Excluir"):
-          del dados["embalagens"][emb]
-          salvar_dados(dados)
-          st.rerun()
-  else:
-    st.info("Nenhum material cadastrado.")
+  for emb, preco in dados["embalagens"].items():
+    st.write(f"**{emb}**: R$ {preco:.2f} un")
